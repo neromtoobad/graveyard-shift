@@ -10,7 +10,7 @@ Not ready to sell? Launch the project as a **token** on a bonding curve instead.
 of every trade goes into a founder pot that they can withdraw only while the repo has a commit in the last 30 days,
 which our keeper reads from GitHub and records on-chain. Founders get paid for shipping, not for launching.
 
-Live: **https://graveyard.nerom.site** · Built for Vibeathon 02 (Night Shift) on Vibestarter.
+Live: **https://graveyard.nerom.site** · Demo video: **https://youtu.be/tO_EvPLJjPE** · Built for Vibeathon 02 (Night Shift) on Vibestarter.
 
 ![Graveyard Shift](submission/hero.png)
 
