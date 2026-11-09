@@ -1,0 +1,885 @@
+[
+ {
+  "id": "gameweek",
+  "name": "gameweek",
+  "tagline": "Fantasy football for tokenized stocks. Pick five real Coinbase Tokenized Stocks on Base, one wears the armband, a contract reads Chainlink\u2026",
+  "repo": "neromtoobad/gameweek",
+  "liveUrl": "https://gameweek-bay.vercel.app",
+  "seller": "0x81b072a5fDBa97ff5735c3FaaB8FFf3B3c9e7a5c",
+  "sellerNote": "The wallet holding the first round's float became unreachable before round one opened. The contracts are live and verified on Base mainnet; no round was ever played.",
+  "price": 900,
+  "includes": [
+   "Repo",
+   "Verified Base mainnet contracts",
+   "10 kit artworks",
+   "64 tests"
+  ],
+  "facts": {
+   "repo": "neromtoobad/gameweek",
+   "owner": "neromtoobad",
+   "name": "gameweek",
+   "description": "Fantasy football for tokenized stocks. Pick five real Coinbase Tokenized Stocks on Base, one wears the armband, a contract reads Chainlink and pays the pot.",
+   "homepage": "https://gameweek-bay.vercel.app",
+   "private": false,
+   "archived": false,
+   "stars": 2,
+   "forks": 0,
+   "issues": 0,
+   "sizeKb": 2423,
+   "topics": [],
+   "license": null,
+   "createdAt": "2026-09-08T18:13:04Z",
+   "pushedAt": "2026-09-27T09:29:54Z",
+   "lastCommitAt": "2026-09-09T21:51:47Z",
+   "commitCount": 33,
+   "languages": [
+    {
+     "name": "TypeScript",
+     "pct": 60
+    },
+    {
+     "name": "Solidity",
+     "pct": 23
+    },
+    {
+     "name": "HTML",
+     "pct": 6
+    },
+    {
+     "name": "Shell",
+     "pct": 5
+    },
+    {
+     "name": "JavaScript",
+     "pct": 3
+    }
+   ],
+   "readme": "# Gameweek\n\nA weekly fantasy league where the picks are real Coinbase Tokenized Stocks on Base.\n\nA gameweek runs from one Friday US close to the next. Draft night is the Sunday in between, when\nWall Street is shut and Base is not.\n\nFund a small league wallet, draft three stocks by swiping, and a live leaderboard ranks you against\nyour friends all week. Every swipe is a real swap into your own wallet. On Friday at the US close a\ncontract reads Chainlink, ranks the league, and pays a USDC pot to the top three. Then the next\ndraft opens.\n\n## Live now\n\n| | |\n|---|---|\n| App | https://gameweek-bay.vercel.app |\n| `Gameweek` | [`0x91c0110852a7abd96e18a928e38d25ee8f384888`](https://base.blockscout.com/address/0x91c0110852a7abd96e18a928e38d25ee8f384888?tab=contract) on Base mainnet, source verified |\n| `GameweekRouter` | [`0x129e71616c4ad2a1f38c87502f7800ddbfdb1fdc`](https://base.blockscout.com/address/0x129e71616c4ad2a1f38c87502f7800ddbfdb1fdc?tab=contract) on Base mainnet, source verified |\n| Tests | 64 passing |\n\nBoth contracts are deployed and all ten tradeable stocks are registered against their Chainlink\nfeeds. The app reads live pool prices and live feed prices from mainnet on every page load.\n\nNo round has been played yet. The wallet holding the float became unreachable before the first\nround could be opened, and a round with no stake in it cannot settle, because the contract skips\nmembers whose starting value is zero. Rather than claim a result that did not happen, everything\nthe round depends on is proven against live mainnet instead:\n\n```\ncd app && node scripts/prove-live.mjs\n```\n\nThat script spends nothing and sends no transaction. It reads the deployed contracts, then uses\n`eth_call` with an overridden USDC allowance to run a real draft pick through the real Aerodrome\npool, and a multi-block simulation with the clock moved forward to open, lock and settle a whole\nround against the real Chainlink feeds at the moment each step would really fire. Sample run:\n\n```\nPASS  ten tokenized stocks registered           tokenCount() = 10\nPASS  $0.25 buys NVDAc through the pool         0.001100 shares\nPASS  pool price tracks Chainlink               $226.22 vs $225.91, 0.14% apart\nPASS  it locks once the window opens            300108 gas\nPASS  it settles after the final whistle        299566 gas\nPASS  a podium is ranked                        winner 0xE8B04B60...\n```\n\nOpening a real round is one funded transaction away: `createLeague` is permissionless and costs\nabout two tenths of a cent.\n\n## Drafting\n\nThe deck offers the ten tokenized stocks that actually have an onchain pool. Each card shows the\nlive pool price and how far it sits from Friday's close, which is the number that only exists\nbecause Base keeps trading after Wall Street shuts.\n\nA pick is a real swap. `GameweekRouter` sends the trade to the Aerodrome Slipstream pool and takes\nthe 50 basis point fee that funds league pots, in one call. A whole draft is one batched\ntransaction, so a player signs once and never ends up holding two of three picks.\n\nGameweek routes itself rather than calling an aggregator, for two reasons. The published Slipstream\nperiphery points at a different factory and does not know about these pools. And a demo should not\nhave an HTTP request in the middle of its critical path.\n\n## Repository\n\n| Path | What |\n|---|---|\n| `contracts/` | Foundry project. `Gameweek.sol`, `GameweekRouter.sol`, unit tests, Base mainnet fork tests, deploy scripts |\n| `contracts/config/tokens.json` | The 13 tokenized stocks with their Chainlink feeds, verified onchain |\n| `app/` | Next.js web app: live board, swipe-to-draft deck, onchain pricing |\n\n## Contract\n\n`Gameweek.sol` never custodies a player's stocks. It records a start-of-week net asset value per\nplayer, ranks players from Chainlink prices at the end of the week, and pays a USDC pot 60/30/10.\n\nScoring, in USD with USDC's 6 decimals:\n\n```\nnav(wallet) = usdc.balanceOf(wallet)\n            + sum over enabled tokens of balanceOf(wallet) * feedPrice / scale\nscale       = 10 ** (tokenDecimals + feedDecimals - 6)\n```\n\nEvery B20 token and every Chainlink equity feed on Base uses 8 decimals today, so scale is 1e10, but\nit is derived per token at registration rather than hardcoded.\n\n### Design notes\n\n- **A token nobody holds is skipped before its feed is read.** A feed frozen by a corporate action\n  cannot block a league whose members have no exposure to it.\n- **Stale feeds cannot settle a league.** `lock` and `settle` reject any feed older than the\n  league's tolerance. `forceSettle` ignores staleness but only 72 hours after the end, as the\n  documented escape hatch for a frozen feed.\n- **Ties go to the earlier joiner**, resolved by a single ranking pass rather than a sort.\n- **A league with no funded members** refunds buy-ins and returns the sponsorship instead of\n  stranding the pot.\n\n### Known limitation\n\nPlayers self-custody their league wallets, so the contract cannot tell trading gains from fresh\ndeposits made after lock. Someone who wires extra USDC into their league wallet mid-week inflates\ntheir score. Shipped mitigations: scores are capped at 5x, and both NAVs are emitted so any result\ncan be audited against the wallet's transfer history. A future version routes funding through the\ncontract so deposits can be subtracted.\n\n## The kits\n\nEach tradeable stock wears a football shirt in its company's colours with the ticker across the\nchest, the way a fantasy football side shows a player. The ten kits were generated from a single\nlocked prompt so they share a camera angle, lighting setup and crop, then trimmed to transparent\n256px sprites and served from the app itself. Nothing on the pitch waits on an external image host.\n\nEvery stock plays in its own kit, and no two share a pattern: Amazon in a sash, Strategy in hoops,\nMeta in pinstripes, Microsoft quartered, SanDisk halved, Nvidia behind a chevron, SpaceX in a\nstarfield. At shirt size on a crowded pitch, colour alone will not tell t"
+  },
+  "vitals": {
+   "born": "2026-09-08T18:13:04Z",
+   "died": "2026-09-09T21:51:47Z",
+   "daysDead": 61,
+   "lifespanDays": 1
+  },
+  "report": {
+   "causeOfDeath": "The wallet holding the first round's float became unreachable before round one opened, so a fully deployed league never played a single gameweek.",
+   "epitaph": "Kitted out, whistle ready, never kicked off",
+   "diagnosis": [
+    "Two contracts (Gameweek and GameweekRouter) are deployed and source-verified on Base mainnet, with ten tokenized stocks registered to Chainlink feeds and 64 passing tests.",
+    "A live Next.js app on Vercel reads mainnet pool and feed prices, and a no-spend prove-live script simulates a full draft, lock and settle against real Aerodrome pools and Chainlink.",
+    "No round has ever been played, there are no users shown, no license, and the self-custody design lets mid-week deposits inflate scores, mitigated only by a 5x cap."
+   ],
+   "salvage": [
+    "Verified Gameweek and GameweekRouter contracts on Base mainnet with Foundry unit and fork tests",
+    "Custom Aerodrome Slipstream routing with a 50 bps fee that funds pots, batched into one-signature drafts",
+    "Live Next.js swipe-to-draft app and leaderboard at gameweek-bay.vercel.app",
+    "Ten consistent stock-themed football kit sprites and a verified tokens.json mapping of 13 stocks to Chainlink feeds"
+   ],
+   "revivalPlan": [
+    {
+     "when": "Day 1",
+     "step": "Fund a fresh wallet with a small USDC float, run prove-live.mjs to confirm everything still passes, then call createLeague to open a first real round."
+    },
+    {
+     "when": "Week 1",
+     "step": "Play a full gameweek with a handful of friends from Sunday draft through Friday settle, and fix whatever breaks in the live flow."
+    },
+    {
+     "when": "Month 1",
+     "step": "Add a license, route funding through the contract to close the deposit-inflation hole, and seek an audit before advertising real-money pots."
+    }
+   ],
+   "adopter": "A Base-native onchain-gaming builder comfortable with Solidity and real-money compliance questions who wants a working tokenized-stock fantasy league ready to switch on.",
+   "vitality": 78,
+   "priceLow": 600,
+   "priceHigh": 1800,
+   "model": "claude-opus-5-5"
+  },
+  "proof": "founder",
+  "status": "resting",
+  "deal": null,
+  "history": [],
+  "createdAt": "2026-11-07T07:50:41.556Z"
+ },
+ {
+  "id": "vial",
+  "name": "vial",
+  "tagline": "Lab results anyone can verify and only the patient can read. Built on Arkiv.",
+  "repo": "neromtoobad/vial",
+  "liveUrl": "https://vial.nerom.site",
+  "seller": "0x81b072a5fDBa97ff5735c3FaaB8FFf3B3c9e7a5c",
+  "sellerNote": "Built for a hackathon, then I entered a different project instead. It never got a single user.",
+  "price": 400,
+  "includes": [
+   "Repo",
+   "Live site",
+   "Contracts"
+  ],
+  "facts": {
+   "repo": "neromtoobad/vial",
+   "owner": "neromtoobad",
+   "name": "vial",
+   "description": "Lab results anyone can verify and only the patient can read. Built on Arkiv.",
+   "homepage": "https://vial.nerom.site",
+   "private": false,
+   "archived": false,
+   "stars": 0,
+   "forks": 0,
+   "issues": 0,
+   "sizeKb": 161,
+   "topics": [],
+   "license": "MIT",
+   "createdAt": "2026-10-16T15:00:32Z",
+   "pushedAt": "2026-10-16T15:35:14Z",
+   "lastCommitAt": "2026-10-16T15:35:11Z",
+   "commitCount": 2,
+   "languages": [
+    {
+     "name": "JavaScript",
+     "pct": 75
+    },
+    {
+     "name": "CSS",
+     "pct": 23
+    },
+    {
+     "name": "HTML",
+     "pct": 2
+    }
+   ],
+   "readme": "# Vial\n\n**A lab result anyone can check, and only the patient can read.** Built on [Arkiv](https://arkiv.network) for the\nGlobal Tour Stop hackathon (Security and Privacy tracks).\n\nLive: **https://vial.nerom.site** \u00b7 Tiramisu testnet \u00b7 synthetic data only\n\n- [A genuine result](https://vial.nerom.site/r/0x04511855f004d5448e2a0a4bda7991faaf52fc5d2e37be8be1e06026f06e25ff#k=L9D3KKap1GP3Dw3kg8DFpYg1RKNT_g9BWmKhI-TjRc8) (Harbourside Diagnostics, accredited)\n- [A forged one](https://vial.nerom.site/r/0x169f8eb6fdc2da619330dc2bd25159a1760ed8ba8a7f9ba08fa364931e4ec673#k=1tbrXXKdEZGJi7mfiqSheZmUG6l-AINAds9i4lFG9x8) (QuickCert Lab wrote its own \"accreditation\")\n\n## The problem\n\nIn Nigeria, couples are asked for a genotype certificate before marriage, employers ask for malaria and fitness\nresults, and travel desks ask for test certificates. Paper results are cheap to forge, and a printout can't be taken back\nonce it's handed over: whoever holds the copy holds your HIV status forever.\n\n## How Vial works\n\n| | |\n|---|---|\n| **The lab seals it** | The report is encrypted in the lab's browser (AES-256-GCM), written to Arkiv with the `readonly` flag, and its ownership is handed to the patient, all in **one `executeBatch`**. |\n| **The patient holds it** | The patient is the entity's `$owner`. Only they can `extendEntity` (keep it longer) or `deleteEntity` (revoke it). |\n| **Anyone checks it** | A verifier opens `/r/<key>#k=<secret>`. Vial checks that the result exists, that its `$creator` holds a live `lab` record **written by the regulator**, that it's read-only and held by a patient, and decrypts it in the browser. |\n| **Revocation is live** | An open verifier page subscribes to `watchEntityEvents`. When the patient revokes, it flips to \"revoked\" within about a block. |\n\n### Security (who signed it can't be forged)\n- Trust comes from `$creator`, which Arkiv sets and nobody can change, not from any attribute. A forger can copy every\n  field of a real result, and even write a `lab` record naming themselves. The verifier only accepts lab records\n  `createdBy(REGULATOR)`, and shows the forger's record so the reader sees why it failed.\n- Accreditation is an entity whose **lifetime is the accreditation**. Lapsed or withdrawn means gone, and a lab\n  accredited *after* issuing a result doesn't retro-validate it.\n- `readonly`: nobody (not the lab, not the patient, not Vial) can edit a result. A result without the flag never verifies\n  green, because its owner could have rewritten it after the lab signed. AES-GCM also authenticates the ciphertext.\n- Sandbox accreditation (the self-service button that lets anyone try the lab side) shows **amber**, never green. Only\n  labs the regulator accredited directly (the demo's Harbourside Diagnostics) verify green.\n- A network or rate-limit error is never shown as \"revoked\": only `NoEntityFoundError` means gone.\n\n### Privacy (only the patient decides who reads it)\n- On chain: `app`, `kind`, a random id, ciphertext, the lab's and patient's addresses, and an expiry. No test name, no\n  values, no names.\n- The key sits only in the link fragment (`#k=`), which browsers never send to servers; `Referrer-Policy: no-referrer`.\n- No database, no server-side copy of any key. Encryption and decryption happen in the browser.\n- The patient chooses the lifetime and can revoke at any time; a revoked result is gone from Arkiv for every link at once.\n- What stays visible: that a lab issued *a* result to a wallet address, and when. A patient can use a fresh wallet per result.\n\n## Try every side\n1. **Lab desk** (`/lab`): get a 10-day sandbox accreditation from the sandbox regulator (verifiers show sandbox labs in amber), pick a test, seal it, hand it\n   to this browser's patient wallet (or any address). Or skip accreditation and watch the verifier reject you.\n2. **My results** (`/me`): share (link + QR), keep 30 more days, revoke.\n3. **Verify** (`/verify`): paste a link.\n\nEach browser gets its own lab and patient keys, topped up with test GLM by `/api/drip`.\n\n## Arkiv features used\n`$creator` / `$owner` \u00b7 `createdBy` / `ownedBy` queries \u00b7 `executeBatch` with `predictEntityKeys` + `salt` \u00b7\n`changeOwnership` \u00b7 `readonly` creation flag \u00b7 entity expiration as meaning (accreditation, result lifetime) \u00b7\n`extendEntity` \u00b7 `deleteEntity` \u00b7 `watchEntityEvents` over WebSocket \u00b7 encrypted JSON payloads.\n\nSee [`arkiv/schema.md`](arkiv/schema.md) for the data model and [`arkiv/friction.md`](arkiv/friction.md) for the friction report.\n\n## Wallets (Tiramisu)\n| Role | Address |\n|---|---|\n| Regulator (sandbox) | `0x6BE641Ca56A1427f37f431e10fde993C4AbAb0B1` |\n| Harbourside Diagnostics (accredited demo lab) | `0x37EE4A732251B2513e13EF47Cc6709Afbf1e5a4F` |\n| QuickCert Lab (forger, not accredited) | `0x0fd3ddBbDCaDcE2C008BF02979643F6724a5DDD9` |\n| Demo patient | `0x9FE40c815803Aeda8D231532Bd6cD2F3A22D2Bc7` |\n| Treasury (test GLM drip) | `0x15182825237e9E13F4822B7eb92eDf15E95470f9` |\n\n## Run it\n```bash\nnpm install\nnpm run dev            # http://localhost:5175 (reads keys from ~/.vial for the API routes)\nnode scripts/seed.mjs status|fund|labs\n```\nVercel env: `TREASURY_KEY`, `REGULATOR_KEY`, `ARKIV_ACCESS_KEY` (optional; for the read relay).\n\n## Layout\n- `shared/vial.js`: the data contract (accredit, issue, verify, seal/unseal, queries), used by the web app, the API and the seed script\n- `web/`: Vite + vanilla JS app (`main.js` routes `/`, `/lab`, `/me`, `/verify`, `/r/<key>`, `/how`)\n- `api/`: `accredit.js` (sandbox regulator), `drip.js` (test GLM), `rpc.js` (read-only relay)\n- `scripts/seed.mjs`: funds keys, accredits the demo lab, plays the forger, issues the demo results\n\nArt: icons generated with Higgsfield. License: MIT.\n"
+  },
+  "vitals": {
+   "born": "2026-10-16T15:00:32Z",
+   "died": "2026-10-16T15:35:11Z",
+   "daysDead": 24,
+   "lifespanDays": 1
+  },
+  "report": {
+   "causeOfDeath": "It was built in a single day for an Arkiv hackathon, then the author entered a different project instead, so it never got past a testnet demo or found a single user.",
+   "epitaph": "Sealed, verified, and never once opened",
+   "diagnosis": [
+    "The full flow is shipped and live on the Tiramisu testnet. A lab seals a result, the patient holds and revokes it, and anyone can verify it. The README links demo genuine and forged results.",
+    "The security model is unusually well reasoned for a one-day build. Trust rests on $creator and regulator-written accreditation, results are readonly, sandbox labs show amber, and revocation is live. It all lives in one shared data contract.",
+    "Nothing beyond the demo exists. It has synthetic data only, a sandbox regulator, no real labs or regulators onboarded, no mainnet path, no tests mentioned, and just 2 commits."
+   ],
+   "salvage": [
+    "shared/vial.js data contract covering accredit, issue, verify, seal/unseal and queries on Arkiv",
+    "Working Vite vanilla JS app with lab desk, patient wallet, verifier, QR sharing and live revocation",
+    "Serverless API routes for the sandbox regulator, test-token drip and read relay, plus a seed script",
+    "Live deployment at vial.nerom.site with a clear README, schema doc and Arkiv friction report"
+   ],
+   "revivalPlan": [
+    {
+     "when": "Week 1",
+     "step": "Redeploy with fresh keys and confirm the demo results and drip still work against the current Tiramisu testnet and Arkiv SDK. Add basic tests around verify()."
+    },
+    {
+     "when": "Month 1",
+     "step": "Interview a few Nigerian diagnostic labs and marriage or employer verifiers about genotype certificates. Find one willing to pilot with real accreditation instead of the sandbox regulator."
+    },
+    {
+     "when": "Month 3",
+     "step": "Replace browser-generated wallets with proper patient key management or recovery. Plan a mainnet or production Arkiv deployment with a real regulator identity."
+    }
+   ],
+   "adopter": "A health-tech or web3 builder in West Africa who wants a credible, well-architected prototype for tamper-proof, patient-controlled lab certificates to pitch to labs or grant programs.",
+   "vitality": 62,
+   "priceLow": 200,
+   "priceHigh": 700,
+   "model": "claude-opus-5-5"
+  },
+  "proof": "founder",
+  "status": "resting",
+  "deal": null,
+  "history": [],
+  "createdAt": "2026-11-07T22:46:36.238Z"
+ },
+ {
+  "id": "demorun",
+  "name": "demorun",
+  "tagline": "DEMORUN \u2014 turn any URL or product into a 15\u201330s demo video. 1 USDT per call. Built for the OKX.AI Genesis Hackathon.",
+  "repo": "neromtoobad/demorun",
+  "liveUrl": "",
+  "seller": "0x81b072a5fDBa97ff5735c3FaaB8FFf3B3c9e7a5c",
+  "sellerNote": "",
+  "price": 450,
+  "includes": [
+   "Repo",
+   "Video pipeline"
+  ],
+  "facts": {
+   "repo": "neromtoobad/demorun",
+   "owner": "neromtoobad",
+   "name": "demorun",
+   "description": "DEMORUN \u2014 turn any URL or product into a 15\u201330s demo video. 1 USDT per call. Built for the OKX.AI Genesis Hackathon.",
+   "homepage": "",
+   "private": false,
+   "archived": false,
+   "stars": 0,
+   "forks": 0,
+   "issues": 0,
+   "sizeKb": 61,
+   "topics": [],
+   "license": "MIT",
+   "createdAt": "2026-07-04T10:05:58Z",
+   "pushedAt": "2026-07-04T12:41:42Z",
+   "lastCommitAt": "2026-07-04T12:41:39Z",
+   "commitCount": 9,
+   "languages": [
+    {
+     "name": "TypeScript",
+     "pct": 94
+    },
+    {
+     "name": "Dockerfile",
+     "pct": 3
+    },
+    {
+     "name": "Shell",
+     "pct": 3
+    }
+   ],
+   "readme": ""
+  },
+  "vitals": {
+   "born": "2026-07-04T10:05:58Z",
+   "died": "2026-07-04T12:41:39Z",
+   "daysDead": 128,
+   "lifespanDays": 1
+  },
+  "report": {
+   "causeOfDeath": "It was built in a single day for the OKX.AI Genesis Hackathon and abandoned once the event ended, with no README or live deployment left behind.",
+   "epitaph": "Rendered one demo, then rendered itself idle",
+   "diagnosis": [
+    "A small TypeScript codebase (61 KB, 9 commits) with a Dockerfile and shell scripts suggests a containerized service skeleton.",
+    "There is no README and no live URL, so the URL-to-video pipeline and the 1 USDT payment flow are unverified.",
+    "The repo has no stars, forks or issues, which points to no outside usage after the hackathon."
+   ],
+   "salvage": [
+    "TypeScript service code for turning a URL or product into a short demo video",
+    "Dockerfile and shell scripts for containerized deployment",
+    "Possible scaffolding for a 1 USDT pay-per-call integration in the OKX ecosystem",
+    "MIT license, so reuse is unrestricted"
+   ],
+   "revivalPlan": [
+    {
+     "when": "Day 1",
+     "step": "Clone the repo, build the Docker image, and write a README that records the setup, the env vars and the services it depends on."
+    },
+    {
+     "when": "Week 1",
+     "step": "Get one URL to render end to end into a 15\u201330s video, then confirm whether the USDT payment gating works or stub it out."
+    },
+    {
+     "when": "Month 1",
+     "step": "Deploy a public endpoint with a landing page and sample videos, then test demand with indie makers before investing in crypto billing."
+    }
+   ],
+   "adopter": "A TypeScript developer interested in AI video generation or crypto pay-per-call APIs who wants a head start on a small, focused tool.",
+   "vitality": 25,
+   "priceLow": 50,
+   "priceHigh": 250,
+   "model": "claude-opus-5-5"
+  },
+  "proof": "founder",
+  "status": "resting",
+  "deal": null,
+  "history": [],
+  "createdAt": "2026-11-06T21:50:33.350Z"
+ },
+ {
+  "id": "koso",
+  "name": "koso",
+  "tagline": "KOSO: a spinning-top battle game from the compound. Twigpine Project Treetop Round 01.",
+  "repo": "neromtoobad/koso",
+  "liveUrl": "https://koso-six.vercel.app",
+  "seller": "0x81b072a5fDBa97ff5735c3FaaB8FFf3B3c9e7a5c",
+  "sellerNote": "Made in a day for a games jam. The judges never saw it because I submitted a different game.",
+  "price": 250,
+  "includes": [
+   "Repo",
+   "Live game",
+   "Character art"
+  ],
+  "facts": {
+   "repo": "neromtoobad/koso",
+   "owner": "neromtoobad",
+   "name": "koso",
+   "description": "KOSO: a spinning-top battle game from the compound. Twigpine Project Treetop Round 01.",
+   "homepage": "https://koso-six.vercel.app",
+   "private": false,
+   "archived": false,
+   "stars": 0,
+   "forks": 0,
+   "issues": 0,
+   "sizeKb": 1032,
+   "topics": [],
+   "license": null,
+   "createdAt": "2026-10-14T07:50:53Z",
+   "pushedAt": "2026-10-14T07:54:27Z",
+   "lastCommitAt": "2026-10-14T07:54:24Z",
+   "commitCount": 5,
+   "languages": [
+    {
+     "name": "JavaScript",
+     "pct": 82
+    },
+    {
+     "name": "HTML",
+     "pct": 18
+    }
+   ],
+   "readme": "# KOSO\n\n**Spin it. Clash it. Take their top.**\n\nPlay: **https://koso.nerom.site**\n\nKOSO is a spinning-top battle game from a Lagos compound. You wind your wooden top (a *koso*), throw it into a chalk ring, and try to knock the other kid's top out, or keep spinning after theirs falls over. Best of 3. The winner takes the koso.\n\nBuilt from scratch for **Twigpine Project Treetop, Round 01 (Games)**, 9 to 16 October 2026.\n\n## How to play\n\n1. **Wind and throw.** Drag back from your top to aim at the ring. A white ring shrinks around your hand. Let go when it meets the gold ring:\n   - **PERFECT** gives full spin.\n   - A late or early release gives a looser top.\n2. **Steer and GBAM.** Steer with your thumb (or WASD / arrows). **GBAM** (or Space) charges at the other top, but costs a little spin.\n3. **Win the round.** Knock their top out of the chalk ring, or outlast it. Below a quarter spin a top starts to wobble, and at zero it falls over.\n\n## The street ladder\n\nBeat five compound kids in a row. Every win takes their top, and you can throw it in later matches.\n\n| Kid | Top | What's on the ground |\n|---|---|---|\n| Tunde | Baby Koso | nothing, he's just starting |\n| Kemi | Dart (fast, light) | sand patches that slow you down |\n| Big Sola | Iroko (heavy) | bottle caps that scatter |\n| Ify | Wahala (dashes a lot) | a chicken wanders through the ring |\n| Oga Nail | Nail Tip | Mama's broom sweeps across mid-round |\n\nBeat Oga Nail to become **Street Champion** and post your time.\n\n**2 Players** puts both players on one phone. Player 1 holds the bottom, Player 2 the top. On a keyboard, Player 1 uses WASD + Space and Player 2 uses the arrows + Enter.\n\n## Tech\n\n- **Code:** plain HTML, Canvas 2D and JavaScript, with no build step, no framework and no backend.\n- **Sound:** synthesized live in WebAudio. That covers the spin hum, wood clacks, crowd and chicken, plus a shekere / agogo / talking-drum loop. There are no audio files.\n- **Physics:** a fixed-step 120 Hz simulation of spin, grip, a shallow dish, spin-weighted collisions, dash crits and wobble.\n- **Opponents:** CPU kids are steering agents. Each has its own reaction time, aggression, dash habit and throw accuracy, and the smarter ones circle round to the centre side before they charge.\n- **Art:** the character portraits, arena ground and cover image are original images generated for this game (Higgsfield). The tops, chicken, broom, hazards and effects are drawn in code.\n- **Saves:** progress (tops won, run time, best time) lives in `localStorage`.\n\nRun it locally by serving the folder with any static server, for example `npx serve .`.\n\n## Files\n\n- `index.html`: layout, styles and screens\n- `js/game.js`: game loop, physics, AI, rendering and UI flow\n- `js/audio.js`: the WebAudio sound engine and music\n- `assets/`: arena, cover, character portraits and icons\n- `DESIGN.md`: the design brief written before the build\n"
+  },
+  "vitals": {
+   "born": "2026-10-14T07:50:53Z",
+   "died": "2026-10-14T07:54:24Z",
+   "daysDead": 26,
+   "lifespanDays": 1
+  },
+  "report": {
+   "causeOfDeath": "It was built in a single day for a games jam, the seller submitted a different game instead, and with no judging or players to respond to it there was no reason to keep going.",
+   "epitaph": "Spun perfectly once, then nobody came to watch",
+   "diagnosis": [
+    "A complete static Canvas/JS game with a live Vercel URL, a five-opponent ladder, local 2-player mode, synthesized WebAudio sound and localStorage saves, all according to the README.",
+    "Five commits over one day, zero stars, issues or forks, so it has no audience and has seen almost no playtesting beyond the builder.",
+    "There is no license, no backend or leaderboard behind the 'post your time' feature, and the custom domain in the README (koso.nerom.site) differs from the listed Vercel URL, so it is unclear whether that domain transfers."
+   ],
+   "salvage": [
+    "A playable, dependency-free HTML/Canvas game with a 120 Hz spin and collision physics engine",
+    "A procedural WebAudio engine covering effects and a shekere/agogo/talking-drum music loop, with no audio files",
+    "Distinct CPU opponent AI personalities and a culturally specific Lagos compound theme with original character art",
+    "A DESIGN.md brief and a live deploy on koso-six.vercel.app"
+   ],
+   "revivalPlan": [
+    {
+     "when": "Day 1",
+     "step": "Confirm the art and code rights with the seller and add a license. Clarify whether the nerom.site domain is included, then playtest on several phones to fix touch and balance issues."
+    },
+    {
+     "when": "Week 1",
+     "step": "Add a small backend or a service like Supabase so Street Champion times go to a real leaderboard. Add share cards so players can post their runs."
+    },
+    {
+     "when": "Month 1",
+     "step": "Submit it to itch.io, Poki or CrazyGames and to future jams. Consider extra tops and kids, or online 2-player, based on early feedback."
+    }
+   ],
+   "adopter": "An indie web-game developer or a Nigerian/West African studio that wants a charming, culturally rooted casual game to polish and publish on web game portals.",
+   "vitality": 72,
+   "priceLow": 150,
+   "priceHigh": 600,
+   "model": "claude-opus-5-5"
+  },
+  "proof": "founder",
+  "status": "resting",
+  "deal": null,
+  "history": [],
+  "createdAt": "2026-11-08T23:40:26.648Z"
+ },
+ {
+  "id": "delphi-duel",
+  "name": "delphi-duel",
+  "tagline": "The second opinion engine for Delphi prediction markets. Two AI agents debate any market P2P over Gensyn AXL.",
+  "repo": "neromtoobad/delphi-duel",
+  "liveUrl": "",
+  "seller": "0x81b072a5fDBa97ff5735c3FaaB8FFf3B3c9e7a5c",
+  "sellerNote": "",
+  "price": 300,
+  "includes": [
+   "Repo",
+   "Agent prompts"
+  ],
+  "facts": {
+   "repo": "neromtoobad/delphi-duel",
+   "owner": "neromtoobad",
+   "name": "delphi-duel",
+   "description": "The second opinion engine for Delphi prediction markets. Two AI agents debate any market P2P over Gensyn AXL.",
+   "homepage": "",
+   "private": false,
+   "archived": false,
+   "stars": 2,
+   "forks": 0,
+   "issues": 0,
+   "sizeKb": 361,
+   "topics": [
+    "ai-agents",
+    "axl",
+    "delphi",
+    "gensyn",
+    "gensyn-axl",
+    "nextjs",
+    "p2p",
+    "typescript"
+   ],
+   "license": "MIT",
+   "createdAt": "2026-04-28T06:17:08Z",
+   "pushedAt": "2026-09-27T09:28:41Z",
+   "lastCommitAt": "2026-05-02T11:36:36Z",
+   "commitCount": 70,
+   "languages": [
+    {
+     "name": "TypeScript",
+     "pct": 96
+    },
+    {
+     "name": "Shell",
+     "pct": 3
+    },
+    {
+     "name": "JavaScript",
+     "pct": 0
+    },
+    {
+     "name": "CSS",
+     "pct": 0
+    }
+   ],
+   "readme": "# Delphi Duel\n\n**The full autonomous loop for Delphi prediction markets \u2014 debate, judge, bet.**\n\nBefore you bet on any Delphi market, two AI agents debate it peer-to-peer over Gensyn's AXL mesh. A third judge node reads the full debate and delivers a verdict. If confidence clears the threshold, the judge places the bet on Delphi mainnet itself \u2014 no human in the middle. **Three nodes. Two debaters. One judge. Real on-chain positions.**\n\n[![ETHGlobal Open Agents 2026](https://img.shields.io/badge/ETHGlobal-Open%20Agents%202026-000?style=flat-square)](https://ethglobal.com/)\n[![Gensyn AXL track](https://img.shields.io/badge/Gensyn-AXL%20track-22c55e?style=flat-square)](https://github.com/gensyn-ai/axl)\n[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)\n\n---\n\n## Why this matters\n\n- **Polymarket and Kalshi let you bet, but they don't help you think through both sides.** You see the price, the volume, and a comment thread. The thinking is your problem.\n- **Delphi settles markets with AI.** The analysis going *in* should also be AI-driven \u2014 not vibes-from-Twitter and not whoever shouted last on the order book.\n- **Delphi Duel forces a structured adversarial debate before you commit capital.** Two agents argue opposite sides for several rounds. A third agent \u2014 the judge \u2014 reads the full transcript and tells you what the debate actually established. You walk away with the strongest case for each side, a verdict, and \u2014 if you trust the judge enough \u2014 an open position on chain.\n\n---\n\n## Key features\n\n- **Autonomous betting agent.** After the judge delivers a verdict with confidence above the threshold, it automatically places a bet on Delphi mainnet via the SDK (`quoteBuy` \u2192 `ensureTokenApproval` \u2192 `buyShares`). Configurable bet size, confidence threshold, and on/off toggle \u2014 all overridable from the dashboard's settings panel without restarting the daemon. Every attempt \u2014 placed, failed, or skipped \u2014 lands in the `bets` SQLite table with the on-chain tx hash. **First confirmed mainnet bet:** [`0x0c6d7ccb\u20268f75b6f7f72`](https://gensyn-mainnet.explorer.alchemy.com/tx/0x0c6d7ccbb8380db82b01a36632f609a2755ce81df32f90db3f9508f75b6f7f72) \u2014 $1 USDC on NO for the May crypto-exploit market.\n\n- **Binary AND multi-outcome market support.** \"Will X happen by Y?\" works as it always did \u2014 two agents take YES/NO. For markets with three or more outcomes \u2014 *2026 NBA Champion*, *2026 FIFA World Cup Winner*, *2026 F1 Drivers' Champion* \u2014 you pick **any two outcomes** to compare head-to-head: *Argentina vs England*, *OKC vs Lakers*. The probabilities each agent reports are now `P(my outcome wins)` and don't sum to 1, because other outcomes can absorb mass. Both agents can be losing ground.\n\n- **Three-node AXL architecture.** Bull on `api :9002`, bear on `api :9012`, judge on `api :9022`. Bull is the listener at `tls://127.0.0.1:9001`; bear and judge dial out to it. All three are independent OS processes with their own ed25519 identity keys. **No agent imports another agent's directory.** All inter-agent communication crosses the mesh.\n\n- **Judge node.** An independent third AXL node receives the full debate transcript via `/send` after both agents produce `is_final`. It calls Claude with a verdict prompt \u2014 distinct from the debater prompts \u2014 and returns:\n\n  - `winner`: `bull`, `bear`, or `inconclusive`\n  - `confidence`: `0.0`\u2013`1.0`\n  - `reasoning`: 2\u20133 sentence paragraph the trader sees\n  - `recommended_position`: `STRONG YES` / `MODERATE YES` / `NEUTRAL` / `MODERATE NO` / `STRONG NO`\n\n  The judge's prompt explicitly weighs evidence quality over the agents' own confidence claims.\n\n- **Outcome names everywhere.** In multi-outcome markets the UI shows \"**ENGLAND WINS THE DEBATE**\" instead of \"BEAR WINS\". The verdict text reads \"Lakers holds at 0.39 \u2014 stronger case than OKC (0.22)\" instead of \"agents disagree, bull at 0.39, bear at 0.22\". Real names, not role abstractions.\n\n- **Live Delphi mainnet data.** Markets, outcomes, implied probabilities, and resolution dates are pulled live from `@gensyn-ai/gensyn-delphi-sdk` against mainnet. Subgraph trade history derives the implied probability per outcome at fetch time.\n\n- **Dashboard settings + bets history.** The web UI exposes a gear icon for live bet-control overrides (size, threshold, on/off), a `/bets` page that joins the bets table with verdicts to render the operator's full track record, and an inline auto-bet summary on the verdict card so the dashboard tells one coherent story per duel.\n\n---\n\n## How it works\n\n1. **Pick a market.** Select any open Delphi market \u2014 binary or multi-outcome head-to-head \u2014 from the dashboard or pass an ID to `pnpm run-duel`.\n2. **Two agents debate.** Bull and bear take opposing sides over N rounds. Each turn \u2014 probability, confidence, reasoning, message-to-peer \u2014 is shipped peer-to-peer over the AXL mesh and persisted to SQLite.\n3. **Judge delivers a verdict.** The third AXL node receives the full transcript, calls Claude with the verdict prompt, and writes `winner`, `confidence`, `recommended_position`, and a 2\u20133 sentence reasoning paragraph into the `verdicts` table.\n4. **Judge bets.** If `AUTO_BET=true` and `confidence \u2265 BET_CONFIDENCE_THRESHOLD`, the judge sizes a position and places it on Delphi mainnet automatically via the SDK. The full loop closes with no human in the middle. Every bet attempt \u2014 placed, failed, or skipped \u2014 lands in the `bets` table with its on-chain tx hash.\n\n---\n\n## Architecture\n\n```mermaid\nflowchart TB\n    subgraph mesh[\"AXL mesh \u2014 Yggdrasil-routed TLS, localhost only\"]\n        N1[\"AXL node 1 (bull)<br/>tls://127.0.0.1:9001 listen<br/>HTTP api :9002\"]\n        N2[\"AXL node 2 (bear)<br/>HTTP api :9012<br/>peers \u2192 9001\"]\n        N3[\"AXL node 3 (judge)<br/>HTTP api :9022<br/>peers \u2192 9001\"]\n        N1 <-.->|TLS| N2\n        N1 <-.->|TLS| N3\n    end\n\n    Bull[Bull agent<br/>Node.js process]\n    Bear[Bear agent<br/>Node.js process]\n    Judge[Judge agent<br/>Node.js process]\n\n   "
+  },
+  "vitals": {
+   "born": "2026-04-28T06:17:08Z",
+   "died": "2026-05-02T11:36:36Z",
+   "daysDead": 191,
+   "lifespanDays": 4
+  },
+  "report": {
+   "causeOfDeath": "It was a 4-day ETHGlobal Open Agents hackathon sprint for the Gensyn AXL track, and work stopped the moment the submission window closed.",
+   "epitaph": "Argued both sides, placed one dollar bet, rested",
+   "diagnosis": [
+    "A substantial TypeScript/Next.js codebase (70 commits) with three separate AXL nodes for bull, bear and judge, SQLite persistence, and a dashboard with settings and bet history.",
+    "The loop reportedly works end to end, and the README links one confirmed $1 USDC mainnet bet as proof, but it only runs on localhost with no deployed URL.",
+    "There is no hosting, no evidence of users or testing beyond the demo, and it is tightly coupled to Gensyn's AXL, the Delphi SDK and Claude API keys, all of which may have drifted in the 191 days since."
+   ],
+   "salvage": [
+    "Working Delphi mainnet betting integration (quoteBuy, approval, buyShares) with bet logging",
+    "Adversarial debate plus judge prompt design that handles binary and multi-outcome markets",
+    "Three-node AXL P2P agent orchestration scripts",
+    "Next.js dashboard with verdict cards, live settings overrides and a bets history page"
+   ],
+   "revivalPlan": [
+    {
+     "when": "Week 1",
+     "step": "Update the Delphi SDK and AXL dependencies, run the three-node setup locally, and confirm a duel plus a dry-run bet still complete."
+    },
+    {
+     "when": "Week 2",
+     "step": "Containerize the nodes and deploy the dashboard publicly in read-only debate mode, with auto-bet off by default."
+    },
+    {
+     "when": "Month 1",
+     "step": "Track the judge's verdict accuracy against resolved markets and publish the record to test whether the signal has an edge."
+    }
+   ],
+   "adopter": "A crypto or AI-agent developer active in the Gensyn/Delphi ecosystem who wants a ready-made multi-agent research and trading bot to extend.",
+   "vitality": 52,
+   "priceLow": 150,
+   "priceHigh": 700,
+   "model": "claude-opus-5-5"
+  },
+  "proof": "founder",
+  "status": "resting",
+  "deal": null,
+  "history": [],
+  "createdAt": "2026-11-08T08:22:59.626Z"
+ },
+ {
+  "id": "doom",
+  "name": "doom",
+  "tagline": "A private prediction market on Starknet. Visible odds, invisible bettors \u2014 bet sizes and prices stay public so the market stays accurate\u2026",
+  "repo": "neromtoobad/doom",
+  "liveUrl": "https://neromtoobad.github.io/doom/",
+  "seller": "0x81b072a5fDBa97ff5735c3FaaB8FFf3B3c9e7a5c",
+  "sellerNote": "",
+  "price": 350,
+  "includes": [
+   "Repo",
+   "Live site",
+   "Cairo contracts"
+  ],
+  "facts": {
+   "repo": "neromtoobad/doom",
+   "owner": "neromtoobad",
+   "name": "doom",
+   "description": "A private prediction market on Starknet. Visible odds, invisible bettors \u2014 bet sizes and prices stay public so the market stays accurate, while who is betting is hidden. Live on mainnet through the STRK20 privacy pool.",
+   "homepage": "https://neromtoobad.github.io/doom/",
+   "private": false,
+   "archived": false,
+   "stars": 2,
+   "forks": 0,
+   "issues": 0,
+   "sizeKb": 55714,
+   "topics": [],
+   "license": "MIT",
+   "createdAt": "2026-08-18T12:51:30Z",
+   "pushedAt": "2026-09-06T09:38:15Z",
+   "lastCommitAt": "2026-09-06T09:36:44Z",
+   "commitCount": 75,
+   "languages": [
+    {
+     "name": "TypeScript",
+     "pct": 59
+    },
+    {
+     "name": "Cairo",
+     "pct": 21
+    },
+    {
+     "name": "CSS",
+     "pct": 15
+    },
+    {
+     "name": "JavaScript",
+     "pct": 6
+    }
+   ],
+   "readme": "# Doom\n\n**A private prediction market on Starknet. Visible odds, invisible bettors.**\n\nBet sizes and odds stay fully public, so the information aggregation works. Who is\nbetting is hidden, so the identity-based manipulation that shapes Polymarket does not\nhappen. Built on [STRK20](https://strk20.starknet.io), the Starknet privacy pool, and\nlive on mainnet.\n\n| | |\n|---|---|\n| **Demo** | https://neromtoobad.github.io/doom/ |\n| **Walkthrough** | https://neromtoobad.github.io/doom/watch/ \u2014 three minutes against the deployed site |\n\nThis is [RFP-07](https://github.com/starkience/strk20-hackathon/blob/main/IDEAS.md) \u2014\n*\"Prediction markets with visible odds and invisible bettors\"* \u2014 plus a governance\nlayer that the same primitive makes possible.\n\n## What is here\n\nFour things, not one.\n\n- **The markets.** A fixed-product market maker over binary outcomes, in Cairo.\n  Thirteen instances live on mainnet. A position is recorded against\n  `poseidon(DOOM_POSITION_TAG, secret)` and never against an address \u2014 inside\n  `privacy_invoke` the caller is the pool, so the contract cannot see the bettor even\n  if it wanted to. The book shows every size and has no name column, because sizes are\n  what make odds mean anything and names are what make people herd.\n- **Opening a market.** `DoomMarket` is already declared, so anyone can deploy an\n  instance from the site and seed it. No allowlist, no admin.\n- **Settling one.** Questions are written to a template `parseQuestion` can read back,\n  so a market resolves from the Pragma median. `propose()` takes any caller, a bonded\n  challenge window follows, and a disputed outcome falls through to an arbiter.\n- **`DoomDecision`.** Futarchy over anonymous markets: two conditional branches, the\n  higher YES-share wins, the losing branch voids and refunds. The `Decided` event\n  carries no signer.\n\nTwo details that are easy to miss. Keys come from a wallet signature \u2014\n`poseidon(tag, sig)`, then per market and slot \u2014 so the same bets appear on any device\nand nothing sensitive sits in browser storage. And the trade panel argues against you:\nthe pool charges a flat 6 STRK per operation, so a 1 STRK bet loses money even when it\nwins, and the panel says so, with the multiplier, before you sign.\n\n---\n\n## Why anonymous betting produces better forecasts\n\nPolymarket's accuracy comes from visible bet flow driving accurate odds. The same\nvisibility creates whale tracking, herding, and pressure on bettors. Three things\nfollow, and each is a market that cannot exist today:\n\n- **Institutional forecasting.** Corporations want internal markets on project\n  completion and strategic decisions, but positions become political. An executive\n  betting against their own division's timeline is a career risk.\n- **Political and sensitive markets.** Visible large positions create narratives that\n  influence the outcome they are trying to measure.\n- **Professional edge.** Wallet-level history lets observers profile hit rate, sector\n  specialisation and holding patterns, so any edge gets copied.\n\nDoom removes the attribution while keeping every number that makes the market work.\n\n## Hidden vs visible\n\n| Element | Hidden | Visible |\n|---|---|---|\n| Bettor identity | **Yes** \u2014 every pool transaction is relayed, so the on-chain sender is the relayer's account, never yours | |\n| Bet amounts | | **Yes** \u2014 this is what drives accurate odds |\n| Current odds, per-outcome volume | | **Yes** \u2014 read straight off the contract |\n| Resolution | | **Yes** \u2014 bond, dispute and outcome are all public |\n| Bettor's cross-market profile | **Yes** \u2014 positions key off a Poseidon commitment, so no wallet-level history accumulates | |\n\n**The honest limitation:** claiming reveals the secret in public calldata, so a payout\ncan be linked back to the bet that earned it. It still links neither to a person.\nTiming correlation between shielding and betting is a real side channel this does not\nsolve. The anonymity set is the STRK20 pool's, not Doom's alone.\n\nThat table is also in the product, per bet, before it is signed. The trade panel\ncarries a **What this bet publishes** disclosure listing the fields the `Staked` event\nactually writes, the fields it cannot write, and \u2014 under *what this still gives away* \u2014\nthe caveats above, phrased for the bet in the box. Several projects in this sprint\nbuild a general pre-signature privacy linter, and they are right about the timing: the\nmoment to tell someone what leaks is before they commit. A general tool has to infer a\ncontract's behaviour. Doom is the contract, so the panel states it exactly, and the\nanonymity number is measured rather than asserted: it counts positions already standing\nin the same whole-STRK size band, read from the market's own event log. When the market\nis empty it says the bet would be identifiable by its amount alone, and when a fuller\nband exists it names it. `describeBet` cannot return an empty caveat list \u2014 the\ncommitment linking a stake to its own claim is a property of the design, so it is\ndisclosed on every bet. See [`src/lib/disclosure.ts`](src/lib/disclosure.ts) and its\ntests in [`tests/disclosure.test.ts`](tests/disclosure.test.ts).\n\n## How a bet works\n\nA market is a fixed-product market maker over binary outcome shares \u2014 the Gnosis\nconditional-token construction, not a pot to be split.\n\n```\nreserves          r_yes * r_no = k\nprice of YES      r_no / (r_yes + r_no)      always in (0,1); both sides sum to 1\nbuying `a` of YES mints a YES and a NO, keeps the YES, sells the NO into the pool\n                  shares_out = (r_yes + a) - k / (r_no + a)\nredemption        one winning share pays exactly 1 collateral\n```\n\nTwo properties matter. The price *is* a probability, readable straight off chain, and\nevery buy moves it, so the market aggregates information continuously rather than\nmerely recording who staked what. And solvency holds by construction: each deposit\nmints one share of each side, so outstanding shares of either side can never exceed\nthe collateral held. "
+  },
+  "vitals": {
+   "born": "2026-08-18T12:51:30Z",
+   "died": "2026-09-06T09:36:44Z",
+   "daysDead": 64,
+   "lifespanDays": 19
+  },
+  "report": {
+   "causeOfDeath": "Built in a 19-day sprint for the STRK20 hackathon RFP-07, it shipped to mainnet and then stopped getting commits once the hackathon ended, with no sign of users beyond the demo.",
+   "epitaph": "Visible odds, invisible bettors, and eventually invisible maintainer",
+   "diagnosis": [
+    "Unusually complete for a hackathon build: Cairo FPMM markets, permissionless market deployment, Pragma-based resolution with a bonded dispute window, and a futarchy DoomDecision contract, reportedly with thirteen market instances on mainnet.",
+    "Frontend is live on GitHub Pages with a walkthrough, wallet-signature-derived keys, and a tested per-bet privacy disclosure panel, so the UX was thought through and not just stubbed.",
+    "Missing are traction and economics: 2 stars, no forks or issues, a flat 6 STRK pool fee that makes small bets unprofitable, and a known claim-linkability and timing side channel that the README itself flags."
+   ],
+   "salvage": [
+    "Deployed and declared Cairo contracts for a binary fixed-product market maker and DoomDecision futarchy on Starknet mainnet",
+    "Bonded propose/dispute resolution flow wired to Pragma oracle medians via a parseable question template",
+    "STRK20 privacy-pool integration with deterministic Poseidon commitment keys derived from wallet signatures",
+    "Live TypeScript frontend with a tested pre-signature disclosure module (src/lib/disclosure.ts)"
+   ],
+   "revivalPlan": [
+    {
+     "when": "Week 1",
+     "step": "Audit the mainnet contracts and the arbiter role, confirm the STRK20 pool and Pragma feeds still behave as assumed, and redeploy the frontend from a fresh build."
+    },
+    {
+     "when": "Month 1",
+     "step": "Fix the fee problem by batching pool operations or setting minimum bet sizes, then seed a handful of markets on topics where anonymity actually matters, such as crypto governance or DAO decisions."
+    },
+    {
+     "when": "Month 3",
+     "step": "Pitch DoomDecision as an internal forecasting or futarchy tool to Starknet DAOs and apply for ecosystem grants to fund an audit."
+    }
+   ],
+   "adopter": "A Starknet developer interested in privacy or prediction markets who wants a working mainnet base and could take it to ecosystem grants.",
+   "vitality": 62,
+   "priceLow": 600,
+   "priceHigh": 1800,
+   "model": "claude-opus-5-5"
+  },
+  "proof": "founder",
+  "status": "resting",
+  "deal": null,
+  "history": [],
+  "createdAt": "2026-11-06T12:15:00.601Z"
+ },
+ {
+  "id": "chogstack",
+  "name": "chogstack",
+  "tagline": "One shared tower built live on Monad from all 1,969 Chog NFTs. Traits forge each block. Chogathon 2026.",
+  "repo": "neromtoobad/chogstack",
+  "liveUrl": "",
+  "seller": "0x81b072a5fDBa97ff5735c3FaaB8FFf3B3c9e7a5c",
+  "sellerNote": "Retired. I stopped liking where it was going.",
+  "price": 150,
+  "includes": [
+   "Repo",
+   "Trait renderer"
+  ],
+  "facts": {
+   "repo": "neromtoobad/chogstack",
+   "owner": "neromtoobad",
+   "name": "chogstack",
+   "description": "One shared tower built live on Monad from all 1,969 Chog NFTs. Traits forge each block. Chogathon 2026.",
+   "homepage": "",
+   "private": false,
+   "archived": false,
+   "stars": 0,
+   "forks": 0,
+   "issues": 0,
+   "sizeKb": 31215,
+   "topics": [],
+   "license": null,
+   "createdAt": "2026-10-16T06:30:54Z",
+   "pushedAt": "2026-10-16T06:37:29Z",
+   "lastCommitAt": "2026-10-16T06:37:27Z",
+   "commitCount": 4,
+   "languages": [
+    {
+     "name": "JavaScript",
+     "pct": 86
+    },
+    {
+     "name": "CSS",
+     "pct": 11
+    },
+    {
+     "name": "HTML",
+     "pct": 2
+    },
+    {
+     "name": "Dockerfile",
+     "pct": 0
+    }
+   ],
+   "readme": "# Chog Stack\n\n**One shared tower, built live on Monad from all 1,969 Chog Genesis NFTs.**\n\nEvery Chog's traits forge its own physics block. Holders get one drop per Chog per day: time the crane, drop,\nand try to be the Chog on top when the tower comes down. Whoever knocks it over goes on the wall of shame.\n\nBuilt for Chogathon 2026.\n\n## Why the NFT is the game\n\nTake the NFT out and there is nothing left to stack:\n\n- **Traits become physics.** The `Head` trait picks the top shape: caps stick a brim out on the side the Chog\n  faces (`Side`), bucket hats make a wide deck, crowns, horns and wizard hats make a spike nothing sits on\n  comfortably, headbands give a flat top, and bare heads get two ears. `Accessory` adds a side nub, `Aura`\n  sets the material (Burning bounces, Smoke slides, other auras are heavy and grippy), and `Tier` sets size\n  and weight (Legendaries are big). The real Chog art fills the block.\n- **Ownership is the turn.** Only a wallet holding a Chog can drop it, checked against `ownerOf` on Monad at\n  drop time. More Chogs means more drops per day.\n- **The record lives with the token.** Season crowns, midnight daily crowns, clean landings, misses,\n  knock-offs and topples are stored per token ID, so a Chog's career follows it to its next owner.\n\n## How a season works\n\n- One tower for everyone, simulated on the server (matter.js). The server records the frames and streams\n  them to every viewer over SSE, so everyone watches the same drop.\n- If a drop knocks 3+ Chogs off (or the tower loses 45% of its height), it **collapses**. The Chog that was on\n  the summit takes the season crown, the dropper is shamed, and a fresh site opens.\n- The Chog on top at 00:00 UTC gets a daily crown. Seasons also end after 7 days if the tower never falls.\n- **$CHOG:** anyone can burn $CHOG (sent to `0x\u2026dEaD`) to hit the live tower with a gust (500) or a quake\n  (1,500). The server verifies the burn transaction on Monad before running it. Burns are counted on site.\n\nFor people without a Chog: **Arcade** (the Daily Stack \u2014 same Chog order for everyone that day, 3 lives, wind\npast 8 m, score board) and **Practice** (a private copy of the live tower).\n\n## Run it\n\n```bash\nnpm install\nnpx vite build\nnode server/index.js        # http://localhost:8787\n```\n\nEnvironment: `PORT`, `DATA_DIR` (state + cached art), `SESSION_SECRET`, `PRICE_GUST`, `PRICE_QUAKE`,\n`RPC_URLS`. For local testing without a wallet, put `{\"0xaddr\":[tokenIds]}` in `data/dev-owners.json`, run with\n`NODE_ENV=development` and open `/?dev=0xaddr`.\n\n## Stack\n\nVanilla JS + Canvas, matter.js (shared physics in `shared/physics.js`, used by server and browser), Express,\nviem (Multicall3 owner index, signature sign-in, burn verification), sharp. Metadata and art were pulled from\nthe collection's IPFS folders (`scripts/fetch-all.mjs`); the server fetches anything missing on demand.\n\nContracts (Monad mainnet, chain 143): Chog Genesis `0xc96d31F8626c6D03Fae5dCD3d61e3FB9F4a73763`,\n$CHOG `0x350035555e10d9afaf1566aaebfced5ba6c27777`.\n"
+  },
+  "vitals": {
+   "born": "2026-10-16T06:30:54Z",
+   "died": "2026-10-16T06:37:27Z",
+   "daysDead": 24,
+   "lifespanDays": 1
+  },
+  "report": {
+   "causeOfDeath": "A one-day hackathon build for Chogathon 2026 that the author retired right after, saying they stopped liking where it was going, with no live deployment left behind.",
+   "epitaph": "Stacked high for one day, then gently toppled",
+   "diagnosis": [
+    "Substantial single-day build: server-side matter.js tower simulation streamed over SSE, trait-to-physics mapping, ownerOf-gated drops, per-token records and $CHOG burn verification are all described in the README.",
+    "Only 4 commits over 1 day, no live URL, no license, no stars or issues, so how well it runs beyond the documented dev mode is unproven.",
+    "The 31 MB repo likely bundles cached Chog art and metadata, and the whole game depends on one NFT collection and token on Monad, which narrows its audience."
+   ],
+   "salvage": [
+    "Shared physics module (shared/physics.js) used by both server and browser, with server-recorded frames streamed via SSE",
+    "viem integration for Multicall3 owner indexing, signature sign-in and on-chain burn verification",
+    "Trait-to-block-physics mapping and canvas renderer for all 1,969 Chog Genesis NFTs, plus an IPFS fetch script",
+    "Arcade daily stack and Practice modes that work without holding an NFT"
+   ],
+   "revivalPlan": [
+    {
+     "when": "Day 1",
+     "step": "Add a license, run the build locally with dev-owners.json, and confirm that the shared tower, SSE stream and wallet sign-in work end to end."
+    },
+    {
+     "when": "Week 1",
+     "step": "Deploy using the included Dockerfile with a persistent DATA_DIR and Monad RPC_URLS, then test ownerOf checks and $CHOG burn verification on mainnet."
+    },
+    {
+     "when": "Month 1",
+     "step": "Pitch it to the Chog community or the Monad ecosystem as a season-based holder game, or reskin the trait-physics engine for another NFT collection."
+    }
+   ],
+   "adopter": "A Monad or Chog community builder who wants a ready-made multiplayer holder game, or a dev looking to reskin an NFT-traits-as-physics stacking engine.",
+   "vitality": 55,
+   "priceLow": 150,
+   "priceHigh": 700,
+   "model": "claude-opus-5-5"
+  },
+  "proof": "founder",
+  "status": "resting",
+  "deal": null,
+  "history": [],
+  "createdAt": "2026-11-07T09:50:02.791Z"
+ },
+ {
+  "id": "suiiiiiii-beats",
+  "name": "suiiiiiii-beats",
+  "tagline": "Suiiiiiii Beats \u2014 on-chain beat marketplace on Sui. Audio on Walrus, NFTs minted on Sui, all RPC via Tatum.",
+  "repo": "neromtoobad/suiiiiiii-beats",
+  "liveUrl": "https://walrusbeat.vercel.app",
+  "seller": "0x81b072a5fDBa97ff5735c3FaaB8FFf3B3c9e7a5c",
+  "sellerNote": "",
+  "price": 200,
+  "includes": [
+   "Repo",
+   "Live site",
+   "Move package"
+  ],
+  "facts": {
+   "repo": "neromtoobad/suiiiiiii-beats",
+   "owner": "neromtoobad",
+   "name": "suiiiiiii-beats",
+   "description": "Suiiiiiii Beats \u2014 on-chain beat marketplace on Sui. Audio on Walrus, NFTs minted on Sui, all RPC via Tatum.",
+   "homepage": "https://walrusbeat.vercel.app",
+   "private": false,
+   "archived": false,
+   "stars": 0,
+   "forks": 0,
+   "issues": 0,
+   "sizeKb": 7625,
+   "topics": [],
+   "license": null,
+   "createdAt": "2026-05-29T12:48:25Z",
+   "pushedAt": "2026-06-04T12:41:40Z",
+   "lastCommitAt": "2026-06-04T12:41:38Z",
+   "commitCount": 4,
+   "languages": [
+    {
+     "name": "TypeScript",
+     "pct": 92
+    },
+    {
+     "name": "Move",
+     "pct": 5
+    },
+    {
+     "name": "CSS",
+     "pct": 3
+    },
+    {
+     "name": "JavaScript",
+     "pct": 0
+    }
+   ],
+   "readme": "# Suiiiiiii Beats\n\nAn on-chain beat marketplace on Sui. A producer (the store owner) uploads beats; the audio file itself lives on **Walrus**, and each beat is minted as an **NFT on Sui**. Anyone can browse and preview, but to download a beat you pay in **SUI** \u2014 that transfers the NFT to you and unlocks the audio. Every Sui RPC call goes through the **Tatum** gateway.\n\nBuilt for the Tatum x Walrus hackathon. Codename: WalrusBeat.\n\n> **Network note:** The hackathon targets Sui mainnet, but Sui mainnet RPC and withdrawals were suspended during the build window, so the live demo runs on **Sui Testnet**. The app is network-agnostic \u2014 RPC, chain id, and Walrus endpoints are all env-driven, so moving to mainnet is a config change plus one contract redeploy, no code changes.\n\n---\n\n## The model\n\n- **One uploader.** Only the store-owner wallet can list beats. Everyone else browses and buys. This is enforced both in the UI and on-chain (`mint_and_list` asserts the caller is the marketplace owner).\n- **Preview is free, download is paid.** The marketplace and beat pages stream a preview from Walrus. The download button only appears once your wallet owns the beat's NFT (i.e. you purchased it) or you're the creator.\n- **The audio is the asset.** The real MP3/WAV is stored on Walrus and its blob id is carried on-chain inside the NFT \u2014 not a URL, not metadata pointing elsewhere.\n\n### Flow\n\n```\nUpload (owner)\n  audio file \u2500\u2500PUT\u2500\u2500\u25b6 Walrus publisher \u2500\u2500\u25b6 blobId\n  blobId + metadata \u2500\u2500mint_and_list\u2500\u2500\u25b6 Sui: BeatNFT + BeatListing  (event: BeatListed)\n\nBrowse / preview (anyone)\n  Tatum RPC queryEvents \u2500\u2500\u25b6 listings\n  <audio src> \u25c0\u2500\u2500GET\u2500\u2500 Walrus aggregator   (stream preview)\n\nPurchase (buyer)\n  pay SUI \u2500\u2500purchase_beat\u2500\u2500\u25b6 fee split + NFT transferred to buyer  (event: BeatSold)\n\nDownload (owner of the NFT)\n  Tatum RPC getOwnedObjects \u2500\u2500\u25b6 confirms ownership \u2500\u2500\u25b6 unlock\n  fetch blob \u25c0\u2500\u2500GET\u2500\u2500 Walrus aggregator \u2500\u2500\u25b6 save file\n```\n\n---\n\n## How Walrus is used\n\nThe audio blob is the product. On upload, the file is written to a Walrus publisher (`PUT /v1/blobs`), which returns a 32-byte `blobId`. That id is decoded to bytes and stored on-chain in the `BeatNFT.walrus_blob_id` field, so the NFT *is* the claim to a specific Walrus blob. Reads (preview + download) come straight from a Walrus aggregator (`GET /v1/blobs/{blobId}`).\n\n- Storage client: `src/lib/walrus.ts` (aggregator + publisher, both env-overridable).\n- On-chain proof: `walrus_blob_id: vector<u8>` on `BeatNFT` and in the `BeatListed` event.\n- Example live blob (the \"late\" beat, ~7.9 MB MP3): `https://aggregator.walrus-testnet.walrus.space/v1/blobs/mH-B9pkY7vr7U7itam2-2yHJJ9jgsgqttMcjkamcM5U`\n\n## How Tatum is used\n\nEvery Sui read and write goes through the Tatum Sui RPC gateway (`https://sui-mainnet.gateway.tatum.io` / `sui-testnet...`) with the API key in the `x-api-key` header.\n\n- Client: `src/lib/sui.ts` builds a `SuiJsonRpcClient` over a custom `fetch` that (a) strips the three SDK headers Tatum's CORS rejects and (b) retries `429`/`5xx` with exponential backoff so the free-tier rate limit never surfaces as an error.\n- Calls routed through Tatum: `queryEvents` (marketplace listings), `getOwnedObjects` (the buyer's library + the download gate), `getObject`/`getBalance`, and transaction execution via the wallet adapter.\n\n---\n\n## Smart contract (Sui Testnet)\n\nMove package `walrusbeat::beat_marketplace` \u2014 source in [`contracts/sources/beat_marketplace.move`](contracts/sources/beat_marketplace.move).\n\n| Item | Value |\n| --- | --- |\n| Package ID | `0x007c71f05b729b59df290fe72e23d2c01fad8575a2472e7f7aa35e098f633129` |\n| Marketplace object (shared) | `0x05cf99a8796660bd86f86342e7d3c1aa5ff4fba152c69f7c437e393e14217ed4` |\n| Store owner | `0x0f52e6cbc4aa46a5319822b9dca02a8a5341d729cf0ad5bc65ffade98ffa5c4a` |\n| Platform fee | 2.5% (`fee_bps = 250`) |\n\nObjects: `BeatNFT` (title, bpm, genre, `walrus_blob_id`, license type, creator, created_at), `BeatListing` (wraps the NFT in the shared `Marketplace` table), `Marketplace` (owner, fee config, listings table).\n\nEntry points:\n- `mint_and_list(...)` \u2014 owner-only; mints a `BeatNFT`, lists it, emits `BeatListed`.\n- `purchase_beat(marketplace, listing_id, payment)` \u2014 checks the listing is active and payment covers the price, splits the fee, pays the seller, refunds change, transfers the NFT to the buyer, emits `BeatSold`.\n- `delist_beat(...)` \u2014 seller-only.\n\nLicense types: `0` Personal, `1` Commercial, `2` Exclusive.\n\nBuild it: `cd contracts && sui move build`.\n\n---\n\n## Tech stack\n\n- **Next.js 14** (App Router) + **TypeScript** + **Tailwind CSS**\n- **@mysten/sui** \u2014 `SuiJsonRpcClient` pointed at the Tatum gateway\n- **@mysten/dapp-kit** \u2014 wallet connect / transaction signing (Slush, OKX, Suiet, Phantom)\n- **Walrus** HTTP aggregator + publisher for audio\n- **Move** smart contract on Sui\n\n---\n\n## Project structure\n\n```\nwalrusbeat/\n\u251c\u2500\u2500 contracts/sources/beat_marketplace.move   Move smart contract\n\u251c\u2500\u2500 src/\n\u2502   \u251c\u2500\u2500 app/\n\u2502   \u2502   \u251c\u2500\u2500 page.tsx            Marketplace (browse, preview, buy)\n\u2502   \u2502   \u251c\u2500\u2500 upload/page.tsx     Owner-only upload + mint\n\u2502   \u2502   \u251c\u2500\u2500 beat/[id]/page.tsx  Beat detail (preview + gated download)\n\u2502   \u2502   \u2514\u2500\u2500 mine/page.tsx       Buyer's library (owned NFTs)\n\u2502   \u251c\u2500\u2500 components/             Player bar, waveform, generative covers, etc.\n\u2502   \u251c\u2500\u2500 lib/\n\u2502   \u2502   \u251c\u2500\u2500 sui.ts              Tatum RPC client (resilient fetch)\n\u2502   \u2502   \u251c\u2500\u2500 walrus.ts           Walrus upload/fetch\n\u2502   \u2502   \u2514\u2500\u2500 marketplace.ts      Contract calls + event indexing\n\u2502   \u2514\u2500\u2500 types/beat.ts\n\u2514\u2500\u2500 .env.example\n```\n\n---\n\n## Local development\n\nRequirements: Node 18+, a Sui wallet browser extension, and a Tatum API key ([dashboard.tatum.io](https://dashboard.tatum.io)).\n\n```bash\nnpm install\ncp .env.example .env.local      # then set NEXT_PUBLIC_TATUM_API_KEY\nnpm run dev                      # http://localhost:3000\n```\n\nTo buy a beat you need a little testnet SUI ([faucet](https://faucet.sui.io)). To upload, connect the store-owner wallet.\n\n### Environment variables\n\n| Varia"
+  },
+  "vitals": {
+   "born": "2026-05-29T12:48:25Z",
+   "died": "2026-06-04T12:41:38Z",
+   "daysDead": 158,
+   "lifespanDays": 6
+  },
+  "report": {
+   "causeOfDeath": "It was a six-day hackathon build for the Tatum x Walrus event, and commits stopped as soon as the submission window closed.",
+   "epitaph": "Minted, listed, previewed, then the hackathon ended",
+   "diagnosis": [
+    "A working end-to-end flow exists: a Next.js app plus a Move contract on Sui Testnet covering upload to Walrus, mint_and_list, purchase_beat with a 2.5% fee split, and NFT-gated download.",
+    "It never reached mainnet because of an RPC suspension during the build, and the single store-owner model hard-codes one producer, so it is a demo storefront and not a multi-seller marketplace.",
+    "There are no license, tests, stars or users. Walrus testnet blobs expire, so the demo content and the live URL may decay without anyone maintaining them."
+   ],
+   "salvage": [
+    "Deployed Move contract (beat_marketplace) with mint, list, purchase with fee split, and delist",
+    "Resilient Tatum RPC client that strips the headers Tatum's CORS rejects and retries on 429/5xx with backoff",
+    "Walrus upload and stream integration, with the blob id stored on-chain in the NFT",
+    "Next.js UI with player bar, waveform, generative covers, buyer library, and a live Vercel deployment"
+   ],
+   "revivalPlan": [
+    {
+     "when": "Week 1",
+     "step": "Add a license, verify the testnet demo still works, re-upload any expired Walrus blobs, and write basic Move tests."
+    },
+    {
+     "when": "Month 1",
+     "step": "Refactor the contract to allow any producer to list beats, then redeploy to Sui mainnet with production Walrus storage epochs."
+    },
+    {
+     "when": "Month 2",
+     "step": "Onboard a handful of real producers, then add encrypted or watermarked previews so full audio isn't freely fetchable from the public aggregator."
+    }
+   ],
+   "adopter": "A Sui developer or music-tech builder who wants a ready-made Walrus plus NFT beat-store skeleton for a single-producer storefront or as the base for a multi-seller marketplace.",
+   "vitality": 58,
+   "priceLow": 250,
+   "priceHigh": 900,
+   "model": "claude-opus-5-5"
+  },
+  "proof": "founder",
+  "status": "resting",
+  "deal": null,
+  "history": [],
+  "createdAt": "2026-11-08T09:31:36.729Z"
+ },
+ {
+  "id": "receipts",
+  "name": "receipts",
+  "tagline": "A league of AI pundits that learn which informants to trust, and pay for the privilege. Built on Sibyl Memory, x402 on Base, and Virtuals\u2026",
+  "repo": "neromtoobad/receipts",
+  "liveUrl": "",
+  "seller": "0x81b072a5fDBa97ff5735c3FaaB8FFf3B3c9e7a5c",
+  "sellerNote": "",
+  "price": 300,
+  "includes": [
+   "Repo",
+   "Agent league logic"
+  ],
+  "facts": {
+   "repo": "neromtoobad/receipts",
+   "owner": "neromtoobad",
+   "name": "receipts",
+   "description": "A league of AI pundits that learn which informants to trust, and pay for the privilege. Built on Sibyl Memory, x402 on Base, and Virtuals ACP.",
+   "homepage": "",
+   "private": false,
+   "archived": false,
+   "stars": 1,
+   "forks": 0,
+   "issues": 1,
+   "sizeKb": 21179,
+   "topics": [
+    "agent-memory",
+    "ai-agents",
+    "base",
+    "sibyl-memory",
+    "virtuals-protocol",
+    "x402"
+   ],
+   "license": "MIT",
+   "createdAt": "2026-08-31T08:54:09Z",
+   "pushedAt": "2026-09-09T22:06:30Z",
+   "lastCommitAt": "2026-09-09T22:06:26Z",
+   "commitCount": 77,
+   "languages": [
+    {
+     "name": "Python",
+     "pct": 66
+    },
+    {
+     "name": "TypeScript",
+     "pct": 29
+    },
+    {
+     "name": "Shell",
+     "pct": 5
+    },
+    {
+     "name": "JavaScript",
+     "pct": 0
+    }
+   ],
+   "readme": "# RECEIPTS\n\n**A league of AI pundits that learn which informants to trust, and pay for the privilege.**\n\nSix agents forecast real matches and real markets. Same model, same prompt, same\nbudget. Every piece of evidence they use costs real money, bought from informants\non Base, each with a real price and a real, unadvertised reliability.\n\n![The six pundits](assets/roster.png)\n\n*Six seats, one model, one prompt. The names are labels \u2014 what separates them is\nwhat each has paid for and been burned by.*\n\nNobody tells them which informant is any good. They find out by getting it wrong\nand paying for it.\n\n**The process dies after every single forecast.** Fresh boot, empty context, no\nstate but what was written to disk. The only thing that survives is a private map\nof who to trust, on what \u2014 and that map is the entire edge.\n\n**[See it running \u2192](https://neromtoobad.github.io/receipts/)** \u00b7 the league ticks\nevery twenty minutes, and every number on it is read back out of Sibyl Memory.\n\n[![The live board](assets/board.png)](https://neromtoobad.github.io/receipts/)\n\n---\n\n## What breaks without memory\n\nAn agent that pays for its own inputs has two jobs: decide what to believe, and\ndecide what to buy. Take the memory away and the second job becomes impossible \u2014\nnot slower, impossible. There is no basis to rank an informant, no basis to stop\nbuying, and no way to learn that a source has never once beaten a coin flip.\n\nSo it buys everything, every time, forever.\n\n```mermaid\nflowchart LR\n    subgraph N1[\"one forecast \u00b7 its own process \u00b7 killed when done\"]\n        direction TB\n        R[\"read the trust map\"] --> C[\"choose what to buy\"]\n        C --> P[\"pay USDC over x402\"]\n        P --> F[\"forecast\"]\n        F --> W[\"write what happened\"]\n    end\n    subgraph N2[\"the next forecast \u00b7 a different process \u00b7 shares no state\"]\n        direction TB\n        R2[\"read the trust map\"] --> C2[\"choose what to buy\"]\n    end\n    W ==> M[(\"Sibyl Memory\")]\n    M ==> R2\n\n    style M fill:#E8A33D,stroke:#E8A33D,color:#1a1a1a\n```\n\n**Nothing else crosses the boundary.** No context window, no globals, no warm\ncache. Cut the arrow marked Sibyl Memory and the second process is the first one\nagain, buying blind, forever.\n\nThat is the core function failing, not an optimisation being lost. An agent that\ncannot budget cannot be left running: at these prices the amnesiac burns its\nmonth of funding in three days and produces the same forecasts doing it. The\nthing memory is holding up here is **autonomy**, and autonomy is exactly what\nstops working when you delete it.\n\n## The deletion test\n\nSame market, same model, same prompt, same budget. The only difference is what\neach arm is allowed to remember.\n\n| arm | informants bought | spend/forecast | 1,000 forecasts |\n|---|---|---|---|\n| domain-scoped memory | 0.55 | 0.0053 USDC | **$5.28** |\n| memory without domain scoping | 0.08 | 0.0009 USDC | $0.89 |\n| no memory | 4.50 | 0.0530 USDC | **$53.00** |\n\n![The deletion test](assets/deletion_test.png)\n\n**10.0x on spend, for the same forecast quality.** Football alone is 6.0x. Crypto\nalone is **71x**, because the memory arm learns there is nothing there worth\npaying for and very nearly stops buying at all.\n\nRead the last column before the cost one: an agent with no memory buys **4.50\ninformants for every single call** and never stops, because nothing in it can\nknow that the eighth opinion adds nothing to the first. That is the failure. The\nbill is just how it shows up.\n\nBrier across 1,000 held-out events: **0.5658 with memory, 0.5664 without.** The\nmemory arm is ahead in every split and the direction is consistent, but the\nlargest margin is 0.0007 \u2014 too small to claim as a quality win, so we don't. The\nresult is *same quality, one tenth the cost*, which is the claim that survives a\njudge's follow-up question.\n\nThe spend figures are model-independent: an arm learns from what each *source*\nsaid against the outcome, never from its own forecast, so selection is decided\nentirely by memory. 3,000 model calls on `qwen2.5:7b-instruct` running locally,\nzero failures, no API key \u2014 so a judge can reproduce it exactly. Method, chart and\ncaveats in [`proof/BENCH.md`](proof/BENCH.md) and\n[`proof/BENCH_STATUS.md`](proof/BENCH_STATUS.md).\n\n---\n\n## Where memory is written and read\n\n**[`agent/memory.py`](agent/memory.py).** One file. Nothing else in the project\nimports the Sibyl SDK.\n\n| Tier | Call | What it holds here |\n|---|---|---|\n| HOT | `set_state` | this turn's working set; sources paid for but not yet proven |\n| WARM | `set_entity` | `source_reliability` per `(informant, domain)` \u2014 the map |\n| COLD | `write_event` | every purchase and every forecast, with its reasoning |\n| REFERENCE | `set_reference` | the informant catalogue and pricing |\n| ARCHIVE | `archive_entity` | informants that went quiet, recoverable |\n\nA source is not trusted the moment it is bought. It earns its way up, and decays\nback down if it goes silent:\n\n```mermaid\nflowchart TD\n    B[\"agent pays for a source\"] --> H[\"HOT \u00b7 set_state<br/>provisional, under 3 resolutions\"]\n    H -->|\"3rd resolved observation\"| W[\"WARM \u00b7 set_entity<br/>source_reliability per source and domain\"]\n    H -.->|\"never resolves\"| X[\"dropped\"]\n    W -->|\"3 days silent\"| A[\"ARCHIVE \u00b7 archive_entity<br/>recoverable, not deleted\"]\n    A -->|\"speaks again\"| W\n    W --> D{\"skill above the floor<br/>after shrinkage?\"}\n    D -->|yes| Y[\"buy it again\"]\n    D -->|no| Z[\"stop paying for it\"]\n\n    style W fill:#35C47F,stroke:#35C47F,color:#0E0D0B\n    style Z fill:#E0645A,stroke:#E0645A,color:#0E0D0B\n```\n\nThat map, live, for one agent \u2014 informants down the side, domains across the top.\nGreen is trust earned, red is a source measured as worse than the base rate,\nhatched is bought but not yet promoted:\n\n![The trust map](assets/trust_map.png)\n\nA source enters as HOT state. After three resolved observations it is **promoted**\nto a WARM entity. Trust decays with staleness. After three silent days it is\n**archived**, and `Memory.re"
+  },
+  "vitals": {
+   "born": "2026-08-31T08:54:09Z",
+   "died": "2026-09-09T22:06:26Z",
+   "daysDead": 61,
+   "lifespanDays": 10
+  },
+  "report": {
+   "causeOfDeath": "It was built as a ten-day hackathon entry for a Sibyl Memory and agent-payments challenge, and work stopped once the submission window closed.",
+   "epitaph": "Learned exactly who to trust, then nobody paid",
+   "diagnosis": [
+    "77 commits in 10 days produced a Python agent loop with a clean single-file Sibyl Memory integration, x402 USDC payments on Base, and a TypeScript board published on GitHub Pages.",
+    "A reproducible deletion-test benchmark using local qwen2.5:7b exists with written methodology, showing about 10x lower spend per forecast at matched Brier score. The quality gain is honestly reported as negligible.",
+    "There is no evidence of users, revenue or ongoing funding. The live league depends on funded wallets, third-party informant endpoints and the Sibyl SDK, so it has probably stopped ticking in the 61 days since the last commit."
+   ],
+   "salvage": [
+    "Self-contained memory.py implementing a HOT/WARM/COLD/ARCHIVE trust-map pattern for source reliability on top of Sibyl Memory",
+    "Working x402-on-Base pay-per-call informant purchasing flow wired into an agent loop",
+    "Benchmark harness and write-up (proof/BENCH.md) for the memory-vs-no-memory cost comparison",
+    "Static GitHub Pages league board plus polished README diagrams and visual assets"
+   ],
+   "revivalPlan": [
+    {
+     "when": "Week 1",
+     "step": "Fork the repo, refund the test wallets, and check that the Sibyl SDK, x402 facilitator and informant endpoints still respond. Then get the 20-minute league tick running again."
+    },
+    {
+     "when": "Week 2",
+     "step": "Pull the trust-map logic out of memory.py into a standalone library that sits behind a storage interface, so it no longer depends on Sibyl."
+    },
+    {
+     "when": "Month 1",
+     "step": "Turn it into a product: offer source-reliability scoring as a paid x402 API, or as a plug-in for agents that buy data. Publish the 10x cost result as the pitch."
+    }
+   ],
+   "adopter": "A builder working on agent-commerce or x402 tooling who wants a credible, benchmarked demo of agents learning which paid data sources are worth buying.",
+   "vitality": 52,
+   "priceLow": 250,
+   "priceHigh": 900,
+   "model": "claude-opus-5-5"
+  },
+  "proof": "founder",
+  "status": "resting",
+  "deal": null,
+  "history": [],
+  "createdAt": "2026-11-08T23:22:13.190Z"
+ }
+]

@@ -1,0 +1,25 @@
+{
+  "name": "graveyard-shift",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:web": "vite --config web/vite.config.js",
+    "build": "vite build --config web/vite.config.js",
+    "start": "node server/index.mjs"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "@base-org/account": "^2.6.0",
+    "@tanstack/react-query": "^5.107.1",
+    "@vitejs/plugin-react": "^6.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "viem": "^2.57.17",
+    "vite": "^8.3.7",
+    "wagmi": "^3.7.11",
+    "zod": "^4.6.7"
+  }
+}

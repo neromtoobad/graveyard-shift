@@ -1,0 +1,3 @@
+{
+  "rewrites": [{ "source": "/(.*)", "destination": "https://web-production-22f27.up.railway.app/$1" }]
+}
