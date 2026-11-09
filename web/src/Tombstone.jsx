@@ -67,7 +67,7 @@ function Candles({ n = 0, id }) {
 }
 
 export function PlotCard({ plot }) {
-  const status = plot.status === 'adopted' ? 'Adopted' : plot.status === 'pending' ? 'In escrow' : 'Resting';
+  const status = plot.status === 'adopted' ? 'Sold' : plot.status === 'pending' ? 'In escrow' : 'For sale';
   return (
     <a className={`plot-card s-${plot.status}`} href={`#/plot/${plot.id}`}>
       <Stone plot={plot} />
@@ -83,14 +83,14 @@ export function PlotCard({ plot }) {
           <div className="row small spirit-row">
             <span className="sym">${plot.spirit.symbol}</span>
             <span className="mini-bar"><i style={{ width: `${Math.max(3, (plot.spirit.progress || 0) * 100)}%` }} /></span>
-            <span>{plot.spirit.risenAt ? 'risen' : `${Math.round((plot.spirit.progress || 0) * 100)}%`}</span>
+            <span>{plot.spirit.risenAt ? 'goal reached' : `${Math.round((plot.spirit.progress || 0) * 100)}% funded`}</span>
           </div>
         )}
         <div className="row small">
-          <span title="Vitality: how revivable the coroner thinks it is">
-            <Pulse v={plot.report?.vitality} /> {plot.report?.vitality ?? '–'} vitality
+          <span title="Revival score: how easy the AI review thinks it is to pick back up (0–100)">
+            <Pulse v={plot.report?.vitality} /> {plot.report?.vitality ?? '–'}/100 revival
           </span>
-          <span>{plot.vitals?.daysDead}d cold</span>
+          <span>last commit {plot.vitals?.daysDead}d ago</span>
         </div>
       </div>
     </a>

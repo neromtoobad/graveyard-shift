@@ -6,7 +6,7 @@ Form: https://app.vibestarter.xyz/vibeathon/submit (closes 9 Nov 2026, 22:00 UTC
 Graveyard Shift
 
 **Tagline**
-Adopt abandoned side projects, or raise them from the dead as tokens. Founders only get paid while they ship.
+A marketplace for abandoned side projects: sell the repo you stopped working on, or buy one and finish it, with USDC escrow on Base. Or launch it as a token and earn only while you ship.
 
 **Live app URL**
 https://graveyard.nerom.site

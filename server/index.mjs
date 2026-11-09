@@ -277,16 +277,16 @@ async function plotRoute(method, id, action, req) {
   }
 
   if (method === 'POST' && action === 'raise') {
-    if (!seance.seanceReady()) throw Object.assign(new Error('The séance table is not set up yet'), { code: 503 });
-    if (p.spirit) throw Object.assign(new Error(`${p.name} is already raised as $${p.spirit.symbol}`), { code: 409 });
-    if (limited(`raise:${ipOf(req)}`, 5, 3600_000)) throw Object.assign(new Error('Too many séances from here. Try again later.'), { code: 429 });
+    if (!seance.seanceReady()) throw Object.assign(new Error('Token launches are not set up yet'), { code: 503 });
+    if (p.spirit) throw Object.assign(new Error(`${p.name} already has a token, $${p.spirit.symbol}`), { code: 409 });
+    if (limited(`raise:${ipOf(req)}`, 5, 3600_000)) throw Object.assign(new Error('Too many launches from here. Try again later.'), { code: 429 });
     const b = await body(req);
     const symbol = String(b.symbol || '').replace(/^[$]/, '').toUpperCase().trim();
     if (!/^[A-Z0-9]{2,8}$/.test(symbol)) throw Object.assign(new Error('Ticker: 2 to 8 letters or digits'), { code: 400 });
     if (!isAddress(b.founder || '')) throw Object.assign(new Error('Connect a wallet first'), { code: 400 });
     const founder = getAddress(b.founder);
     if (founder.toLowerCase() !== seance.founderOf(p).toLowerCase())
-      throw Object.assign(new Error('Only the wallet that buried this project (or its adopter) can raise it'), { code: 403 });
+      throw Object.assign(new Error('Only the wallet that listed this project (or its buyer) can launch its token'), { code: 403 });
     const message = seance.raiseMessage({ repo: p.repo, symbol, founder });
     if (!(await chain.verifySignature(founder, message, b.signature))) throw Object.assign(new Error('Signature did not match the founder wallet'), { code: 401 });
     const raised = await seance.launchSpirit(p, symbol);

@@ -58,7 +58,7 @@ export function ConnectButton({ config }) {
         </button>
         {open && (
           <div className="menu" onMouseLeave={() => setOpen(false)}>
-            <a href={`#/me`} onClick={() => setOpen(false)}>My plots & adoptions</a>
+            <a href={`#/me`} onClick={() => setOpen(false)}>My listings & purchases</a>
             <Faucet config={config} onDone={refetch} compact />
             <a href={`${config?.explorer}/address/${address}`} target="_blank" rel="noreferrer">View on BaseScan ↗</a>
             <button className="linkish" onClick={() => disconnect()}>Disconnect</button>

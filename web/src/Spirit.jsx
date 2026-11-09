@@ -105,31 +105,30 @@ function Unraised({ p, onChange }) {
 
   return (
     <div className="spirit-card unraised">
-      <span className="k"><Wisp /> Séance</span>
+      <span className="k"><Wisp /> Project token</span>
       {isFounder ? (
         <>
-          <h3>Raise it from the dead</h3>
+          <h3>Launch a token for it</h3>
           <p className="muted small">
-            Launch <b>{p.name}</b> as a token on a bonding curve. No presale, no team allocation. 2% of every trade fills a revival pot that you can only
-            claim while the repo has a heartbeat: a commit in the last 30 days.
+            Launch <b>{p.name}</b> as a token on a bonding curve. No presale, no team allocation. 2% of every trade goes into a founder pot that you
+            can withdraw once the token reaches its 1,500 USDC goal, and only while the repo has a commit in the last 30 days.
           </p>
           <label className="field ticker">
             <span>Ticker</span>
             <div><i>$</i><input value={symbol} maxLength={8} onChange={(e) => setSymbol(e.target.value.toUpperCase())} /></div>
           </label>
           <button className="btn primary wide" onClick={raise} disabled={!!busy}>
-            {busy === 'sign' ? 'Sign in your wallet…' : busy === 'raise' ? 'Summoning…' : `Hold a séance for $${symbol || '…'}`}
+            {busy === 'sign' ? 'Sign in your wallet…' : busy === 'raise' ? 'Launching…' : `Launch $${symbol || '…'}`}
           </button>
-          <p className="muted small">One signature, no gas. The launch is on us.</p>
+          <p className="muted small">One signature. We cover the gas.</p>
         </>
       ) : (
         <>
-          <h3>Not raised yet</h3>
+          <h3>No token yet</h3>
           <p className="muted small">
-            The builder who buried {p.name} can raise it as a token. Believers light candles on a bonding curve, and the builder gets paid only while
-            they keep shipping.
+            The seller of {p.name} can launch it as a token. Supporters buy in on a bonding curve, and the founder only earns while they keep shipping.
           </p>
-          <a className="link small" href="#/seance">How the séance works →</a>
+          <a className="link small" href="#/seance">How project tokens work →</a>
         </>
       )}
       {err && <p className="err">{err}</p>}
@@ -190,7 +189,7 @@ function Raised({ p, config, onChange }) {
     });
   const sell = () =>
     run(async () => {
-      if (tokensIn <= 0n) throw new Error('You hold none of this spirit');
+      if (tokensIn <= 0n) throw new Error("You don't hold any of this token");
       const min = ((qs.data ?? 0n) * 97n) / 100n;
       await tx.send(encodeFunctionData({ abi: seanceAbi, functionName: 'sell', args: [BigInt(s.id), tokensIn, min] }), setBusy);
     });
@@ -198,14 +197,14 @@ function Raised({ p, config, onChange }) {
 
   const risen = Boolean(s.risenAt);
   const short_ = tab === 'buy' && balance != null && balance < Number(amt || 0);
-  const label = { approve: 'Approve USDC in your wallet…', sign: 'Confirm in your wallet…', confirming: 'Waiting for Base…', recording: 'Lighting it…' }[busy];
+  const label = { approve: 'Approve USDC in your wallet…', sign: 'Confirm in your wallet…', confirming: 'Waiting for Base…', recording: 'Recording…' }[busy];
   const heldN = Number(held / 10n ** 12n) / 1e6;
 
   return (
     <div className={`spirit-card ${risen ? 'is-risen' : ''}`}>
       <div className="spirit-head">
-        <span className="k"><Wisp /> Spirit token</span>
-        <span className={`chip ${risen ? 'risen' : ''}`}>{risen ? 'Risen' : 'Rising'}</span>
+        <span className="k"><Wisp /> Project token</span>
+        <span className={`chip ${risen ? 'risen' : ''}`}>{risen ? 'Goal reached' : 'Funding'}</span>
       </div>
       <h3 className="ticker-big">${s.symbol}</h3>
 
@@ -213,32 +212,32 @@ function Raised({ p, config, onChange }) {
         <i style={{ width: `${Math.max(2, (s.progress || 0) * 100)}%` }} />
       </div>
       <p className="muted small rise-label">
-        {risen ? <>Risen with {usd(s.reserve)} USDC in the curve</> : <>{usd(s.reserve)} of {usd(config.riseAt)} USDC to rise</>}
+        {risen ? <>Goal reached: {usd(s.reserve)} USDC in the curve</> : <>{usd(s.reserve)} of {usd(config.riseAt)} USDC funding goal</>}
       </p>
 
       <dl className="spirit-stats">
         <div><dt>Price</dt><dd>{px(s.price)}</dd></div>
         <div><dt>Market cap</dt><dd>${compact(s.marketCap)}</dd></div>
-        <div><dt>Candles</dt><dd>{s.candles}</dd></div>
-        <div><dt>Revival pot</dt><dd className="amber">${s.pot?.toFixed(2)}</dd></div>
+        <div><dt>Holders</dt><dd>{s.candles}</dd></div>
+        <div><dt>Founder pot</dt><dd className="amber">${s.pot?.toFixed(2)}</dd></div>
       </dl>
 
       <p className={`heartbeat ${s.alive ? 'alive' : 'flat'}`}>
         <svg viewBox="0 0 60 14" aria-hidden><path d={s.alive ? 'M0 7 H18 L22 2 L26 12 L30 4 L33 7 H60' : 'M0 7 H60'} /></svg>
         {s.alive ? (
-          <>Heartbeat: a commit landed {ago(s.lastPulseCommitAt || new Date(s.lastPulse * 1000))}. {risen ? 'The founder can claim the pot.' : 'The pot unlocks once it rises.'}</>
+          <>Active: last commit {ago(s.lastPulseCommitAt || new Date(s.lastPulse * 1000))}. {risen ? 'The founder can withdraw the pot.' : 'The pot unlocks at the funding goal.'}</>
         ) : (
-          <>Flatlined: no commit since the séance. The pot stays locked until the founder ships.</>
+          <>Inactive: no commit since launch. The founder pot stays locked until they push code.</>
         )}
       </p>
 
       <div className="trade">
         <div className="tabs">
-          <button className={tab === 'buy' ? 'on' : ''} onClick={() => setTab('buy')}>Light a candle</button>
-          <button className={tab === 'sell' ? 'on' : ''} onClick={() => setTab('sell')}>Blow it out</button>
+          <button className={tab === 'buy' ? 'on' : ''} onClick={() => setTab('buy')}>Buy</button>
+          <button className={tab === 'sell' ? 'on' : ''} onClick={() => setTab('sell')}>Sell</button>
         </div>
         {!tx.address ? (
-          <p className="muted small">Connect a wallet (top right) to join the séance.</p>
+          <p className="muted small">Connect a wallet (top right) to trade.</p>
         ) : tab === 'buy' ? (
           <>
             <div className="amount">
@@ -246,21 +245,21 @@ function Raised({ p, config, onChange }) {
               <span>USDC</span>
             </div>
             <div className="presets">{[10, 50, 250, 1000].map((v) => <button key={v} onClick={() => setAmt(String(v))}>{v}</button>)}</div>
-            <p className="muted small">≈ {compact(Number((qb.data ?? 0n) / 10n ** 12n) / 1e6)} ${s.symbol} · 3% fee, 2% of it to the revival pot</p>
+            <p className="muted small">≈ {compact(Number((qb.data ?? 0n) / 10n ** 12n) / 1e6)} ${s.symbol} · 3% fee, 2% of it to the founder pot</p>
             {short_ && <p className="muted small">You have {usd(balance)} gUSDC. <Faucet config={config} onDone={refetch} compact /></p>}
-            <button className="btn primary wide" onClick={buy} disabled={!!busy || short_ || usdIn <= 0n}>{label || `Light a candle · ${usd(amt)} USDC`}</button>
+            <button className="btn primary wide" onClick={buy} disabled={!!busy || short_ || usdIn <= 0n}>{label || `Buy · ${usd(amt)} USDC`}</button>
           </>
         ) : (
           <>
             <p className="muted small">You hold {compact(heldN)} ${s.symbol}.</p>
             <div className="presets">{[25, 50, 100].map((v) => <button key={v} className={pct === v ? 'on' : ''} onClick={() => setPct(v)}>{v}%</button>)}</div>
             <p className="muted small">≈ {(Number(qs.data ?? 0n) / 1e6).toFixed(2)} USDC back, after the 3% fee</p>
-            <button className="btn ghost wide" onClick={sell} disabled={!!busy || tokensIn <= 0n}>{label || 'Blow it out'}</button>
+            <button className="btn ghost wide" onClick={sell} disabled={!!busy || tokensIn <= 0n}>{label || `Sell $${s.symbol}`}</button>
           </>
         )}
         {isFounder && (
-          <button className="btn ghost wide claim" onClick={claim} disabled={!!busy || !risen || !s.alive || !(s.pot > 0)} title={!risen ? 'Unlocks once it rises' : !s.alive ? 'Push a commit to get a heartbeat' : ''}>
-            Claim revival pot · ${s.pot?.toFixed(2)}
+          <button className="btn ghost wide claim" onClick={claim} disabled={!!busy || !risen || !s.alive || !(s.pot > 0)} title={!risen ? 'Unlocks at the funding goal' : !s.alive ? 'Push a commit to unlock' : ''}>
+            Withdraw founder pot · ${s.pot?.toFixed(2)}
           </button>
         )}
         {err && <p className="err">{err}</p>}
@@ -272,7 +271,7 @@ function Raised({ p, config, onChange }) {
             <li key={t.tx + t.who}>
               <Flame out={!t.buy} />
               <a href={`${config.explorer}/tx/${t.tx}`} target="_blank" rel="noreferrer">{short(t.who)}</a>
-              <span>{t.buy ? 'lit' : 'blew out'} ${t.usd.toFixed(t.usd < 10 ? 2 : 0)}</span>
+              <span>{t.buy ? 'bought' : 'sold'} ${t.usd.toFixed(t.usd < 10 ? 2 : 0)}</span>
               <small>{ago(t.at)}</small>
             </li>
           ))}
@@ -303,37 +302,37 @@ export function SeancePage({ config, plots }) {
           <img className="c c2" src="/clay/candle.webp" alt="" />
           <img className="c c3" src="/clay/candle.webp" alt="" />
         </div>
-        <p className="eyebrow">The séance · a launchpad for dead projects</p>
-        <h1>Raise the dead. <em>Then make the founder ship.</em></h1>
+        <p className="eyebrow">Project tokens</p>
+        <h1>Launch your project as a token. <em>Earn only while you ship.</em></h1>
         <p className="lede">
-          Builders raise a buried project as a token. Believers light candles on a bonding curve. Each project rises once {usd(config?.riseAt || 1500)} USDC is
-          in the curve. Founders never get free tokens. They earn from a revival pot, and only while the repo has a heartbeat.
+          Anyone who listed a project can launch it as a token. Supporters buy in on a bonding curve, and each token has a {usd(config?.riseAt || 1500)} USDC
+          funding goal. Founders get no free tokens: they earn from a pot filled by 2% of every trade, and can withdraw it only while they keep committing code.
         </p>
         <div className="seance-stats">
-          <span><b>{spirits.length}</b> spirits raised</span>
-          <span><b>{lit}</b> candles lit</span>
-          <span><b>${pots.toFixed(2)}</b> in revival pots</span>
+          <span><b>{spirits.length}</b> tokens launched</span>
+          <span><b>{lit}</b> holders</span>
+          <span><b>${pots.toFixed(2)}</b> in founder pots</span>
         </div>
       </div>
 
       <ol className="rules">
         <li><b>Fair launch</b>No presale, no team tokens. Price follows a bonding curve, and the USDC in it backs every sell, so nobody can pull the rug.</li>
-        <li><b>It rises at {usd(config?.riseAt || 1500)}</b>The ghost over the stone takes shape as the curve fills. When it's full, the project has risen.</li>
-        <li><b>Paid for a pulse</b>2% of every trade fills a revival pot. The founder can claim it only while the repo has a commit in the last {config?.heartbeatDays || 30} days. Our keeper reads GitHub and writes each heartbeat on-chain.</li>
-        <li><b>Adoption passes the seat</b>Sell the project and the founder seat moves with it. The new owner can claim the pot as soon as they ship.</li>
+        <li><b>Funding goal: {usd(config?.riseAt || 1500)} USDC</b>The goal is reached once that much USDC is in the curve. The ghost over the headstone grows as it fills.</li>
+        <li><b>Paid for shipping</b>2% of every trade goes into a founder pot. The founder can withdraw it only while the repo has a commit in the last {config?.heartbeatDays || 30} days. We check GitHub and record each new commit on-chain.</li>
+        <li><b>Sold projects keep their token</b>If the project is sold, the buyer becomes the founder and can withdraw the pot once they ship.</li>
       </ol>
 
-      <h2>At the table</h2>
-      {q.data && spirits.length === 0 && <p className="muted">No spirits yet. Be the first to hold a séance.</p>}
+      <h2>Live tokens</h2>
+      {q.data && spirits.length === 0 && <p className="muted">No tokens yet. List a project, then launch one from its page.</p>}
       <div className="spirit-grid">
         {spirits.map((p) => (
           <a key={p.id} className={`spirit-tile ${p.spirit.risenAt ? 'is-risen' : ''}`} href={`#/plot/${p.id}`}>
             <Stone plot={p} size="mini" />
             <div>
-              <div className="row"><b>${p.spirit.symbol}</b><span className={`chip ${p.spirit.risenAt ? 'risen' : ''}`}>{p.spirit.risenAt ? 'Risen' : `${Math.round((p.spirit.progress || 0) * 100)}%`}</span></div>
+              <div className="row"><b>${p.spirit.symbol}</b><span className={`chip ${p.spirit.risenAt ? 'risen' : ''}`}>{p.spirit.risenAt ? 'Goal reached' : `${Math.round((p.spirit.progress || 0) * 100)}% funded`}</span></div>
               <div className="rise-bar"><i style={{ width: `${Math.max(2, (p.spirit.progress || 0) * 100)}%` }} /></div>
-              <p className="muted small">{p.name} · {p.spirit.candles} candle{p.spirit.candles === 1 ? '' : 's'} · ${compact(p.spirit.marketCap)} cap</p>
-              <p className={`heartbeat mini ${p.spirit.alive ? 'alive' : 'flat'}`}>{p.spirit.alive ? 'Heartbeat' : 'Flatlined'}</p>
+              <p className="muted small">{p.name} · {p.spirit.candles} holder{p.spirit.candles === 1 ? '' : 's'} · ${compact(p.spirit.marketCap)} cap</p>
+              <p className={`heartbeat mini ${p.spirit.alive ? 'alive' : 'flat'}`}>{p.spirit.alive ? 'Active' : 'Inactive'}</p>
             </div>
           </a>
         ))}
@@ -341,8 +340,8 @@ export function SeancePage({ config, plots }) {
 
       {unraised.length > 0 && (
         <>
-          <h2>Still in the ground</h2>
-          <p className="muted small">Did you bury one of these? Open it and hold a séance.</p>
+          <h2>Projects without a token</h2>
+          <p className="muted small">Listed one of these? Open it to launch a token.</p>
           <div className="unraised-row">
             {unraised.map((p) => (
               <a key={p.id} href={`#/plot/${p.id}`} className="unraised-chip">{p.name}</a>

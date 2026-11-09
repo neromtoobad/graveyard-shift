@@ -46,9 +46,9 @@ export default function App() {
           <img src="/clay/stone-risen.webp" alt="" /> Graveyard Shift
         </a>
         <nav>
-          <a href="#/" className={route === '/' ? 'on' : ''}>The graveyard</a>
-          <a href="#/bury" className={route.startsWith('/bury') ? 'on' : ''}>Bury a project</a>
-          <a href="#/seance" className={route.startsWith('/seance') ? 'on' : ''}>Séance</a>
+          <a href="#/" className={route === '/' ? 'on' : ''}>Browse projects</a>
+          <a href="#/bury" className={route.startsWith('/bury') ? 'on' : ''}>Sell a project</a>
+          <a href="#/seance" className={route.startsWith('/seance') ? 'on' : ''}>Launch a token</a>
           <a href="#/#how">How it works</a>
         </nav>
         <ConnectButton config={config} />
@@ -56,7 +56,7 @@ export default function App() {
       <main>{page}</main>
       <footer className="foot">
         <div>
-          <img src="/clay/lantern.webp" alt="" /> Graveyard Shift · built on the night shift for Vibeathon 02
+          <img src="/clay/lantern.webp" alt="" /> Graveyard Shift · a marketplace for abandoned side projects · built for Vibeathon 02
         </div>
         <div className="foot-links">
           {config?.graveyard && (
@@ -66,7 +66,7 @@ export default function App() {
           )}
           {config?.seance && (
             <a href={`${config.explorer}/address/${config.seance}`} target="_blank" rel="noreferrer">
-              Séance contract {short(config.seance)} ↗
+              Token contract {short(config.seance)} ↗
             </a>
           )}
           <span>Base Sepolia · test USDC</span>
@@ -103,19 +103,21 @@ function Home({ plots, stats, config, loading }) {
     <>
       <section className="hero">
         <div className="hero-copy">
-          <p className="eyebrow"><span className="dot" /> Adopt abandoned side projects, or raise them as tokens · on Base</p>
+          <p className="eyebrow"><span className="dot" /> Live on Base · paid in USDC</p>
           <h1>
-            Every builder has a graveyard. <em>Now it has a night shift.</em>
+            The marketplace for abandoned side projects.
           </h1>
           <p className="lede">
-            Bury the project you stopped shipping. Someone who still believes in it adopts it, repo and live app and all. Their USDC waits in escrow on
-            Base and goes to you when the repo lands in their GitHub. Or hold a séance: raise it as a token, and get paid for every month you ship.
+            Sell the project you stopped working on, or buy one and finish it. The buyer's payment is held in escrow and released to the seller
+            automatically once the GitHub repo is transferred.
           </p>
           <div className="cta">
-            <a className="btn primary" href="#plots">Walk the graveyard</a>
-            <a className="btn ghost" href="#/bury">Bury a project</a>
-            <a className="btn ghost" href="#/seance">Hold a séance</a>
+            <a className="btn primary" href="#plots">Browse projects</a>
+            <a className="btn ghost" href="#/bury">Sell a project</a>
           </div>
+          <p className="hero-alt">
+            Not ready to sell? <a href="#/seance">Launch it as a token</a> and earn from trading fees while you keep building.
+          </p>
         </div>
         <div className="hero-scene" aria-label="The five most revivable projects in the graveyard">
           <div className="moon" />
@@ -127,33 +129,59 @@ function Home({ plots, stats, config, loading }) {
               </a>
             ))}
           </div>
-          <figure className={`watchman${pending ? ' on-duty' : ''}`} title={pending ? `The watchman's lantern is up: ${pending} handover${pending > 1 ? 's' : ''} in escrow tonight` : 'Quiet night. No handovers in escrow.'}>
+          <figure className={`watchman${pending ? ' on-duty' : ''}`} title={pending ? `${pending} sale${pending > 1 ? 's' : ''} waiting for a repo transfer` : 'No sales in escrow right now'}>
             <span className="lantern-glow" />
             <img src="/clay/watchman.webp" alt="The night watchman, holding a lantern and a spade" width="479" height="760" />
-            <figcaption>{pending ? `${pending} handover${pending > 1 ? 's' : ''} in escrow` : 'Quiet night, no handovers'}</figcaption>
+            <figcaption>{pending ? `${pending} sale${pending > 1 ? 's' : ''} in escrow` : 'No sales in escrow'}</figcaption>
           </figure>
         </div>
       </section>
 
+      <section className="how" id="how">
+        <h2>How it works</h2>
+        <ol>
+          <li>
+            <img className="step-ico" src="/clay/spade.webp" alt="" /><span className="n">01</span>
+            <h4>List your repo</h4>
+            <p>Paste a public GitHub repo. An AI review (Claude) reads the code, README and commit history, then writes a report for buyers: why it stalled, what's worth keeping, a plan to finish it and a fair price range. You set the price and sign with your wallet. No gas.</p>
+          </li>
+          <li>
+            <img className="step-ico" src="/clay/chest.webp" alt="" /><span className="n">02</span>
+            <h4>A buyer pays into escrow</h4>
+            <p>The buyer locks the price in USDC in our escrow contract on Base and names the GitHub account the repo should go to. Neither side can move the money except by the rules in step 3.</p>
+          </li>
+          <li>
+            <img className="step-ico" src="/clay/stone-risen.webp" alt="" /><span className="n">03</span>
+            <h4>Transfer the repo, get paid</h4>
+            <p>You transfer the repo on GitHub. We check that it arrived in the buyer's account and release the USDC to you, minus a 2.5% fee. No transfer within 3 days? The buyer gets a full refund. The seller can also cancel and refund at any time.</p>
+          </li>
+          <li>
+            <img className="step-ico" src="/clay/ghost-risen.webp" alt="" /><span className="n">04</span>
+            <h4>Or launch a token</h4>
+            <p>Want to keep it? Launch the project as a token instead, with no presale and no team allocation. 2% of every trade goes into a founder pot that you can withdraw only while you keep committing to the repo. <a href="#/seance">Project tokens →</a></p>
+          </li>
+        </ol>
+      </section>
+
       <section className="ledger">
-        <Stat icon="stone-fresh" k="Resting" v={stats?.resting ?? '–'} d="projects waiting for an owner" />
-        <Stat icon="ghost-float" k="Spirits raised" v={stats?.spirits ?? '–'} d={stats ? `${stats.candles} candle${stats.candles === 1 ? '' : 's'} lit` : 'tokens on the séance curve'} />
-        <Stat icon="chest" k="In escrow" v={stats?.escrow ? `$${usd(stats.escrow.locked)}` : '–'} d="read live from the contract" live />
-        <Stat icon="stone-risen" k="Adopted" v={stats?.adopted ?? '–'} d="handed over and paid" />
+        <Stat icon="stone-fresh" k="For sale" v={stats?.resting ?? '–'} d="projects listed right now" />
+        <Stat icon="chest" k="Held in escrow" v={stats?.escrow ? `$${usd(stats.escrow.locked)}` : '–'} d="USDC, live from the contract" live />
+        <Stat icon="stone-risen" k="Sold" v={stats?.adopted ?? '–'} d="repo transferred, seller paid" />
+        <Stat icon="ghost-float" k="Tokens launched" v={stats?.spirits ?? '–'} d={stats ? `${stats.candles} holder${stats.candles === 1 ? '' : 's'}` : 'projects launched as tokens'} />
       </section>
 
       <section className="plots" id="plots">
         <div className="plots-head">
-          <h2>The graveyard</h2>
+          <h2>Projects for sale</h2>
           <div className="filters">
             {['all', 'resting', 'pending', 'adopted', 'raised'].map((f) => (
               <button key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>
-                {f === 'pending' ? 'in escrow' : f === 'raised' ? 'tokens' : f}
+                {{ all: 'All', resting: 'For sale', pending: 'In escrow', adopted: 'Sold', raised: 'Has a token' }[f]}
               </button>
             ))}
             <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort">
-              <option value="fresh">Freshest grave</option>
-              <option value="vital">Most revivable</option>
+              <option value="fresh">Most recently active</option>
+              <option value="vital">Highest revival score</option>
               <option value="cheap">Cheapest</option>
               <option value="new">Newest listing</option>
             </select>
@@ -164,39 +192,14 @@ function Home({ plots, stats, config, loading }) {
         ) : list.length ? (
           <div className="grid">{list.map((p) => <PlotCard key={p.id} plot={p} />)}</div>
         ) : (
-          <p className="empty">Nothing here yet. <a href="#/bury">Bury the first one.</a></p>
+          <p className="empty">Nothing here yet. <a href="#/bury">List the first one.</a></p>
         )}
       </section>
 
-      <section className="how" id="how">
-        <h2>How a handover works</h2>
-        <ol>
-          <li>
-            <img className="step-ico" src="/clay/spade.webp" alt="" /><span className="n">01</span>
-            <h4>Bury it</h4>
-            <p>Paste a public repo. The coroner (Claude) reads the code, README and commit history and writes the autopsy: cause of death, what's worth salvaging, a revival plan and a fair price band. You set the asking price and sign it with your wallet.</p>
-          </li>
-          <li>
-            <img className="step-ico" src="/clay/chest.webp" alt="" /><span className="n">02</span>
-            <h4>Someone adopts it</h4>
-            <p>The adopter locks the asking price in USDC in the Graveyard contract on Base, and names the GitHub account the repo should go to. The plot's lantern lights. Nobody can touch the money except by the rules below.</p>
-          </li>
-          <li>
-            <img className="step-ico" src="/clay/stone-risen.webp" alt="" /><span className="n">03</span>
-            <h4>Hand over, get paid</h4>
-            <p>You transfer the repo on GitHub. Our verifier sees it arrive in the adopter's account and releases the money to you, minus a 2.5% fee. Never transferred? After 3 days the adopter takes it all back. Change your mind? Back out and they're refunded at once.</p>
-          </li>
-          <li>
-            <img className="step-ico" src="/clay/ghost-risen.webp" alt="" /><span className="n">04</span>
-            <h4>Or raise it</h4>
-            <p>Not ready to let go? Hold a séance. Your project launches as a token on a bonding curve, with no presale and no team tokens. 2% of every trade fills a revival pot that you can claim only while the repo has a commit in the last 30 days. <a href="#/seance">The séance →</a></p>
-          </li>
-        </ol>
-      </section>
 
       {ev?.events?.length > 0 && (
         <section className="log">
-          <h3>Overnight log</h3>
+          <h3>Recent activity</h3>
           <ul>
             {ev.events.slice(0, 8).map((e, i) => (
               <li key={i}>
@@ -213,19 +216,19 @@ function Home({ plots, stats, config, loading }) {
 function describe(e) {
   const p = <a href={`#/plot/${e.plot}`}>{e.plot}</a>;
   switch (e.kind) {
-    case 'buried': return <>{short(e.seller)} buried {p} for {usd(e.price)} USDC</>;
-    case 'adopted': return <>{short(e.buyer)} locked {usd(e.amount)} USDC to adopt {p}</>;
-    case 'attested': return <>Repo for {p} arrived at @{e.owner}; escrow released</>;
-    case 'released': return <>{p} was handed over and paid out</>;
-    case 'refunded': return <>Adoption of {p} was refunded; it rests again</>;
+    case 'buried': return <>{short(e.seller)} listed {p} for {usd(e.price)} USDC</>;
+    case 'adopted': return <>{short(e.buyer)} paid {usd(e.amount)} USDC into escrow for {p}</>;
+    case 'attested': return <>Repo for {p} arrived at @{e.owner}; seller paid</>;
+    case 'released': return <>{p} was sold and paid out</>;
+    case 'refunded': return <>Purchase of {p} was refunded; it's for sale again</>;
     case 'faucet': return <>{short(e.address)} picked up test USDC</>;
-    case 'raised': return <>{p} was raised from the dead as ${e.symbol}</>;
-    case 'candle': return <>{short(e.who)} lit a candle for ${e.symbol} ({e.usd} USDC)</>;
-    case 'snuffed': return <>{short(e.who)} blew out a candle for ${e.symbol}</>;
-    case 'risen': return <>${e.symbol} has risen</>;
-    case 'pulse': return <>Heartbeat: a new commit on {p} ({e.sha})</>;
-    case 'claimed': return <>The founder of {p} claimed {e.usd} USDC from the revival pot</>;
-    case 'seat': return <>The founder seat for ${e.symbol} passed to {short(e.founder)}</>;
+    case 'raised': return <>{p} launched a token, ${e.symbol}</>;
+    case 'candle': return <>{short(e.who)} bought ${e.symbol} ({e.usd} USDC)</>;
+    case 'snuffed': return <>{short(e.who)} sold ${e.symbol}</>;
+    case 'risen': return <>${e.symbol} reached its funding goal</>;
+    case 'pulse': return <>New commit on {p} ({e.sha}), recorded on-chain</>;
+    case 'claimed': return <>The founder of {p} withdrew {e.usd} USDC from the founder pot</>;
+    case 'seat': return <>${e.symbol} founder rewards moved to the new owner, {short(e.founder)}</>;
     default: return e.kind;
   }
 }
@@ -243,17 +246,17 @@ function Stat({ icon, k, v, d, live }) {
 
 function MePage({ plots }) {
   const { address } = useAccount();
-  if (!address) return <section className="page narrow"><h2>My plots</h2><p className="muted">Connect a wallet to see the projects you buried and the ones you're adopting.</p></section>;
+  if (!address) return <section className="page narrow"><h2>My projects</h2><p className="muted">Connect a wallet to see the projects you listed and the ones you're buying.</p></section>;
   const a = address.toLowerCase();
   const mine = plots.filter((p) => p.seller.toLowerCase() === a);
   const adopting = plots.filter((p) => p.deal?.buyer?.toLowerCase() === a);
   return (
     <section className="page">
-      <h2>My plots</h2>
-      <h4 className="sub">Buried by you</h4>
-      {mine.length ? <div className="grid">{mine.map((p) => <PlotCard key={p.id} plot={p} />)}</div> : <p className="muted">None yet. <a href="#/bury">Bury one.</a></p>}
-      <h4 className="sub">Adopting</h4>
-      {adopting.length ? <div className="grid">{adopting.map((p) => <PlotCard key={p.id} plot={p} />)}</div> : <p className="muted">You haven't adopted anything yet.</p>}
+      <h2>My projects</h2>
+      <h4 className="sub">Listed by you</h4>
+      {mine.length ? <div className="grid">{mine.map((p) => <PlotCard key={p.id} plot={p} />)}</div> : <p className="muted">None yet. <a href="#/bury">List one.</a></p>}
+      <h4 className="sub">Bought by you</h4>
+      {adopting.length ? <div className="grid">{adopting.map((p) => <PlotCard key={p.id} plot={p} />)}</div> : <p className="muted">You haven't bought anything yet.</p>}
     </section>
   );
 }

@@ -8,7 +8,7 @@ const LINES = [
   'Counting commits and reading the README…',
   'Checking whether the live app still answers…',
   'Looking for what is worth salvaging…',
-  'Writing the epitaph…',
+  'Writing the summary…',
 ];
 const INCLUDES = ['Repo', 'Live app', 'Domain', 'Contracts', 'Users / waitlist', 'Socials', 'Design files', 'Brand'];
 
@@ -78,8 +78,8 @@ export function BuryPage({ config, onDone }) {
     return (
       <section className="page narrow bury-done">
         <Stone plot={done} size="big" />
-        <h2>{done.name} is laid to rest.</h2>
-        <p className="muted">It's in the graveyard now, waiting for someone to adopt it for {usd(done.price)} USDC.</p>
+        <h2>{done.name} is listed.</h2>
+        <p className="muted">It's on the marketplace now, for sale at {usd(done.price)} USDC.</p>
         <div className="proof-box">
           <h4>Get the ✓ owner verified badge</h4>
           <p>Add a file named <code>.graveyard</code> to the root of <code>{done.repo}</code> containing your wallet address:</p>
@@ -87,8 +87,8 @@ export function BuryPage({ config, onDone }) {
           <ProofCheck id={done.id} />
         </div>
         <div className="cta center">
-          <a className="btn primary" href={`#/plot/${done.id}`}>See the plot</a>
-          <a className="btn ghost" href={`#/plot/${done.id}`}>Raise it as a token</a>
+          <a className="btn primary" href={`#/plot/${done.id}`}>See the listing</a>
+          <a className="btn ghost" href={`#/plot/${done.id}`}>Launch a token for it</a>
         </div>
       </section>
     );
@@ -105,15 +105,15 @@ export function BuryPage({ config, onDone }) {
     <section className="page bury">
       <div className="bury-head">
         <img className="head-prop" src="/clay/spade.webp" alt="" />
-        <p className="eyebrow">Bury a project</p>
-        <h1>Some projects don't need to die. <em>They need a new owner.</em></h1>
-        <p className="lede">Paste the public GitHub repo of something you stopped working on. The coroner reads it and writes an honest autopsy that adopters will see.</p>
+        <p className="eyebrow">Sell a project</p>
+        <h1>Sell the project you stopped working on.</h1>
+        <p className="lede">Paste the public GitHub repo. Our AI review reads the code and history, writes an honest report that buyers will see, and suggests a price. Listing is free.</p>
       </div>
 
       <form className="exam" onSubmit={examine}>
         <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="github.com/you/that-project" aria-label="GitHub repo" />
-        <button className="btn primary" disabled={!repo || busy === 'autopsy'}>{busy === 'autopsy' ? 'Examining…' : a ? 'Re-examine' : 'Perform autopsy'}</button>
-        <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional: in your own words, why did you stop? (The coroner takes it into account.)" rows={2} maxLength={400} />
+        <button className="btn primary" disabled={!repo || busy === 'autopsy'}>{busy === 'autopsy' ? 'Reviewing…' : a ? 'Review again' : 'Review my repo'}</button>
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional: why did you stop working on it? The review takes it into account." rows={2} maxLength={400} />
       </form>
       {err && <p className="err">{err}</p>}
 
@@ -128,17 +128,17 @@ export function BuryPage({ config, onDone }) {
         <div className="bury-grid">
           <div className="bury-preview">
             <Stone plot={preview} size="big" />
-            <p className="cod-small"><span className="k">Cause of death</span>{a.report.causeOfDeath}</p>
+            <p className="cod-small"><span className="k">Why it stalled</span>{a.report.causeOfDeath}</p>
             <ul className="findings">{a.report.diagnosis.map((d, i) => <li key={i}>{d}</li>)}</ul>
-            <p className="muted small">Vitality {a.report.vitality}/100 · {a.facts.commitCount} commits · {a.vitals.daysDead} days since the last one</p>
+            <p className="muted small">Revival score {a.report.vitality}/100 · {a.facts.commitCount} commits · last commit {a.vitals.daysDead} days ago</p>
           </div>
           <div className="bury-form">
-            {a.existing && <p className="err">This repo is already in the graveyard: <a href={`#/plot/${a.existing}`}>see it</a>.</p>}
-            <label className="field"><span>Name on the stone</span><input value={form.name} maxLength={60} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
+            {a.existing && <p className="err">This repo is already listed: <a href={`#/plot/${a.existing}`}>see it</a>.</p>}
+            <label className="field"><span>Project name</span><input value={form.name} maxLength={60} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
             <label className="field"><span>One line: what it is</span><input value={form.tagline} maxLength={140} onChange={(e) => setForm({ ...form, tagline: e.target.value })} /></label>
             <label className="field"><span>Live URL</span><input value={form.liveUrl} onChange={(e) => setForm({ ...form, liveUrl: e.target.value })} placeholder="https://" /></label>
             <div className="field">
-              <span>What the adopter gets</span>
+              <span>What the buyer gets</span>
               <div className="chips">
                 {INCLUDES.map((s) => (
                   <button type="button" key={s} className={form.includes.includes(s) ? 'on' : ''} onClick={() => setForm({ ...form, includes: form.includes.includes(s) ? form.includes.filter((x) => x !== s) : [...form.includes, s] })}>
@@ -148,14 +148,14 @@ export function BuryPage({ config, onDone }) {
               </div>
             </div>
             <label className="field">
-              <span>Asking price (USDC) · coroner suggests ${usd(a.report.priceLow)}–{usd(a.report.priceHigh)}</span>
+              <span>Asking price (USDC) · suggested ${usd(a.report.priceLow)}–{usd(a.report.priceHigh)}</span>
               <input type="number" min="1" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
             </label>
             <p className="muted small">
               {address ? <>Payment goes to {short(address)}. You'll sign a message to prove it's yours; no gas.</> : 'Connect a wallet (top right): it becomes the wallet that gets paid.'}
             </p>
             <button className="btn primary wide" onClick={bury} disabled={!!busy || !!a.existing}>
-              {busy === 'sign' ? 'Sign in your wallet…' : busy === 'list' ? 'Digging…' : 'Bury it'}
+              {busy === 'sign' ? 'Sign in your wallet…' : busy === 'list' ? 'Listing…' : 'List it for sale'}
             </button>
           </div>
         </div>
