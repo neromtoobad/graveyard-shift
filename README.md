@@ -1,42 +1,42 @@
 # Graveyard Shift
 
-**Every builder has a graveyard. Now it has a night shift.**
+**The marketplace for abandoned side projects.**
 
-Graveyard Shift is a marketplace and a launchpad for side projects their builders stopped shipping. You bury a project
-you've stopped working on. Someone who still believes in it adopts it: the repo, the live app, whatever else you include.
-Their USDC waits in an escrow contract on Base, and it reaches you when the repo lands in their GitHub account.
+Sell the project you stopped working on, or buy one and finish it. A seller lists a public GitHub repo and Claude writes
+an honest review for buyers. A buyer pays in USDC, which is held in an escrow contract on Base and released to the
+seller automatically once the repo is transferred to the buyer's GitHub account.
 
-Or you hold a **séance**: raise the dead project as a token on a bonding curve. Believers light candles (buy). The
-founder gets no tokens. Instead 2% of every trade fills a revival pot that the founder can claim only while the repo has
-a heartbeat, meaning a commit in the last 30 days, which our keeper reads from GitHub and writes on-chain. Founders get
-paid for shipping, not for launching.
+Not ready to sell? Launch the project as a **token** on a bonding curve instead. The founder gets no tokens. Instead 2%
+of every trade goes into a founder pot that they can withdraw only while the repo has a commit in the last 30 days,
+which our keeper reads from GitHub and records on-chain. Founders get paid for shipping, not for launching.
 
 Live: **https://graveyard.nerom.site** · Built for Vibeathon 02 (Night Shift) on Vibestarter.
 
+![Graveyard Shift](submission/hero.png)
+
 Contracts on Base Sepolia (source verified on Sourcify):
-- Graveyard escrow: [`0x74d0C081C24A22e1170dd357a00a9dA25cD335d8`](https://sepolia.basescan.org/address/0x74d0C081C24A22e1170dd357a00a9dA25cD335d8)
+- Escrow (`Graveyard.sol`): [`0x74d0C081C24A22e1170dd357a00a9dA25cD335d8`](https://sepolia.basescan.org/address/0x74d0C081C24A22e1170dd357a00a9dA25cD335d8)
+- Token launchpad (`Seance.sol`): [`0x750d7855Cd4e59bb8909F43eC18AB7FcC13347FA`](https://sepolia.basescan.org/address/0x750d7855Cd4e59bb8909F43eC18AB7FcC13347FA)
 - gUSDC test token: [`0x56B5fA16b3f32DcaE2980e17fc967e163409cFca`](https://sepolia.basescan.org/address/0x56B5fA16b3f32DcaE2980e17fc967e163409cFca)
-- Séance launchpad: [`0x750d7855Cd4e59bb8909F43eC18AB7FcC13347FA`](https://sepolia.basescan.org/address/0x750d7855Cd4e59bb8909F43eC18AB7FcC13347FA)
 
 ## What to try
 
-1. **Walk the graveyard.** Each headstone is a real, dormant public repo, and everything on the stone is data:
-   - moss grows with the days since the last commit, and stones dead more than 90 days crack and lean;
-   - the green glow behind a stone is the coroner's *vitality* score: how revivable it is;
-   - a lantern burns while an adoption sits in escrow, and adopted plots turn green and read *risen*;
-   - in the hero, the tower has one window lit for every project buried here, green for each one adopted.
-2. **Open a plot.** Read the coroner's report: cause of death, findings, what's in the coffin (salvageable assets), a
-   three-step revival plan, who should adopt it, and a fair price band next to the asking price.
-3. **Bury a project.** Paste any public GitHub repo. Claude reads the repo facts, the README and the commit history, and
-   writes the autopsy live, in about 10 seconds. Set your price and sign one message (no gas) to list it.
-4. **Light a candle.** Open the Séance and pick a raised spirit ($KOSO, $GWEEK…). Buy on the curve and a candle
-   appears at the foot of its headstone, one per holder. The ghost over the stone takes shape as the curve fills toward
-   1,500 USDC, when the project rises. The panel shows the revival pot and whether the repo has a heartbeat.
-5. **Adopt one.** Connect a wallet. A Base Account works with just a passkey, and approval plus adoption go through as
-   one atomic bundle. Grab 1,000 test USDC from the built-in faucet, which also sends a sip of gas. Then lock the price
-   on Base Sepolia and name the GitHub account the repo should go to.
+1. **Browse the projects.** Each headstone is a real, dormant public repo, drawn from its data:
+   - the stone gathers moss after a month without a commit, and cracks and leans after four;
+   - the green glow behind it is the review's *revival score*: how easy it is to pick back up;
+   - a lantern burns while a sale sits in escrow, and sold projects wear a flower garland;
+   - projects with a token get a ghost that climbs out as the token fills its funding goal, and one candle per holder.
+2. **Open a project.** Read Claude's review: why it stalled, findings, what's worth keeping, a three-step plan to finish
+   it, the best-fit buyer, and a suggested price next to the asking price.
+3. **Sell a project.** Paste any public GitHub repo. Claude reads the repo facts, the README and the commit history, and
+   writes the review live, in about 10 seconds. Set your price and sign one message (no gas) to list it.
+4. **Buy a project token.** Open "Launch a token" and pick a live one ($KOSO, $GWEEK…). The panel shows the funding
+   bar toward the 1,500 USDC goal, the founder pot, and whether the repo is active.
+5. **Buy a project.** Connect a wallet. A Base Account works with just a passkey, and approve plus buy go through as one
+   atomic bundle. Grab 1,000 test USDC from the built-in faucet, which also sends a sip of gas. Then pay on Base
+   Sepolia and name the GitHub account the repo should go to.
 
-## How the handover works
+## How a sale works
 
 ```
 buyer ──adopt(listing, seller, amount, 3 days)──▶  Graveyard escrow (Base)
@@ -54,10 +54,10 @@ buyer can confirm() any time · seller can refund() any time · buyer can refund
 - The verifier is the server's keeper. Every 75 seconds it checks each open deal's repo owner through the GitHub API,
   falling back to github.com's own transfer redirect, and calls `attest` when the repo has moved.
 - Listings are signed by the seller's wallet (EIP-191, with smart-wallet signatures verified through ERC-6492/1271), and
-  the server re-runs the autopsy itself, so a seller can't hand-write their own report.
+  the server re-runs the review itself, so a seller can't hand-write their own report.
 - Owners can add a `.graveyard` file holding their wallet address to the repo to earn a verified badge.
 
-## How the séance works
+## How project tokens work
 
 ```
 founder signs "raise $KOSO"  ──▶  verifier relays launch()  ──▶  Spirit ERC20 + curve in the Séance contract
@@ -78,13 +78,13 @@ repo adopted through the escrow ──▶ setFounder(adopter): the pot follows t
 - **App:** React + Vite, wagmi/viem, and a Base Account connector (passkey smart wallet, EIP-5792 batched calls).
 - **Server:** plain Node: a JSON store on a Railway volume, viem for the keeper/verifier/faucet, the GitHub REST API,
   and the Anthropic SDK.
-- **Coroner:** Claude Opus 5.5 with structured outputs (a zod schema) and server-side refusal fallback. A rule-based
+- **Reviewer:** Claude Opus 5.5 with structured outputs (a zod schema) and server-side refusal fallback. A rule-based
   report takes over if the model is unavailable.
 
 ## Built with
 
 Built in one night shift with Claude Code: contracts, tests, server, UI and deploy, driven from a single conversation.
-Claude also runs inside the product as the coroner.
+Claude also runs inside the product as the reviewer.
 
 ## Run it
 
@@ -96,4 +96,4 @@ cd contracts && forge test && cd ..
 npm run build && npm start      # http://localhost:8787
 ```
 
-The seed graves are the founder's own dormant repos, autopsied by `scripts/seed.mjs`.
+The seed listings are the founder's own dormant repos, reviewed by `scripts/seed.mjs`.
