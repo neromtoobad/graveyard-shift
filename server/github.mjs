@@ -105,3 +105,10 @@ export async function ownershipProof(repo, address) {
   if (readme && readme.toLowerCase().includes(want)) return 'readme';
   return null;
 }
+
+/** Date of the newest commit on the default branch (cached ~10 min, so the heartbeat stays cheap). */
+export async function latestCommit(repo) {
+  const r = await gh(`/repos/${repo}/commits?per_page=1`, { ttl: 10 * 60 * 1000 });
+  const c = r?.body?.[0];
+  return c ? { sha: c.sha, at: c.commit?.committer?.date || c.commit?.author?.date } : null;
+}

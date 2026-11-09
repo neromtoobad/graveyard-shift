@@ -46,14 +46,14 @@ export const pub = createPublicClient({ chain: baseSepolia, transport: http(RPC)
 
 const key = process.env.DEPLOYER_KEY;
 export const account = key ? privateKeyToAccount(key.startsWith('0x') ? key : `0x${key}`) : null;
-const wallet = account ? createWalletClient({ account, chain: baseSepolia, transport: http(RPC) }) : null;
+export const wallet = account ? createWalletClient({ account, chain: baseSepolia, transport: http(RPC) }) : null;
 
 export const listingKey = (slug) => keccak256(toBytes(`graveyard-shift:${slug}`));
 export const ready = () => Boolean(GRAVEYARD && GUSD);
 
 // One signer, many requests: send its transactions one after another so nonces never collide.
 let queue = Promise.resolve();
-function serial(fn) {
+export function serial(fn) {
   const run = queue.then(fn, fn);
   queue = run.catch(() => {});
   return run;

@@ -17,6 +17,7 @@ if (fs.existsSync(FILE)) {
   save();
 }
 db.events ||= [];
+db.meta ||= {};
 
 function save() {
   const tmp = FILE + '.tmp';
@@ -48,6 +49,12 @@ export function log(kind, data) {
 }
 
 export const events = () => db.events;
+
+export const meta = (k) => db.meta[k];
+export function setMeta(k, v) {
+  db.meta[k] = v;
+  save();
+}
 
 export function slugify(s) {
   const base = String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'plot';

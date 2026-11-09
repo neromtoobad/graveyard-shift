@@ -8,6 +8,7 @@ import * as store from './store.mjs';
 import { repoFacts, parseRepo, currentOwner, ownershipProof } from './github.mjs';
 import { autopsy, vitals } from './autopsy.mjs';
 import * as chain from './chain.mjs';
+import * as seance from './seance.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(here, '..', 'web', 'dist');
@@ -45,10 +46,36 @@ export const buryMessage = ({ repo, seller, price }) =>
   `Graveyard Shift\nI am burying ${repo} and offering it for adoption.\nSeller: ${seller}\nAsking: ${price} USDC`;
 
 const publicPlot = (p) => {
-  const { facts, ...rest } = p;
+  const { facts, spirit, ...rest } = p;
   const { readme, ...f } = facts || {};
   return { ...rest, facts: f, listingKey: chain.listingKey(p.id) };
 };
+
+/** A plot as the app sees it, with its spirit token's live curve state when it has one. */
+async function view(p, { full = false } = {}) {
+  const out = publicPlot(p);
+  const s = p.spirit;
+  if (s) {
+    const live = seance.seanceReady() ? await seance.liveInfo(s.id).catch(() => null) : null;
+    const holders = Object.entries(s.holders || {}).sort((a, b) => b[1] - a[1]);
+    out.spirit = {
+      id: s.id,
+      token: s.token,
+      symbol: s.symbol,
+      founder: live?.founder || s.founder,
+      launchedAt: s.launchedAt,
+      launchTx: s.launchTx,
+      candles: holders.length,
+      trades: (s.trades || []).slice(0, full ? 40 : 0).map(({ key, ...t }) => t),
+      holders: full ? holders.slice(0, 12).map(([who, tokens]) => ({ who, tokens })) : undefined,
+      pulses: full ? s.pulses || [] : undefined,
+      lastPulseCommitAt: s.lastPulseCommitAt || null,
+      volume: (s.trades || []).reduce((a, t) => a + t.usd, 0),
+      ...(live || {}),
+    };
+  }
+  return out;
+}
 
 // Autopsies are cached so the report the seller saw is the one that gets listed.
 const autopsies = new Map();
@@ -72,7 +99,9 @@ async function sync(p, { checkTransfer = true } = {}) {
   const d = await chain.readDeal(p.deal.id);
   if (d.state === 'released' && p.status !== 'adopted') {
     store.log('released', { plot: p.id, deal: p.deal.id });
-    return store.updatePlot(p.id, { status: 'adopted', deal: { ...p.deal, state: 'released', settledAt: new Date().toISOString() } });
+    const done = store.updatePlot(p.id, { status: 'adopted', deal: { ...p.deal, state: 'released', settledAt: new Date().toISOString() } });
+    seance.handFounderSeat(done).catch((e) => console.error('seat', e.message));
+    return done;
   }
   if (d.state === 'refunded') {
     store.log('refunded', { plot: p.id, deal: p.deal.id });
@@ -88,10 +117,12 @@ async function sync(p, { checkTransfer = true } = {}) {
     if (owner && owner.toLowerCase() === p.deal.buyerGithub.toLowerCase()) {
       const tx = await chain.attest(p.deal.id);
       store.log('attested', { plot: p.id, deal: p.deal.id, owner, tx });
-      return store.updatePlot(p.id, {
+      const done = store.updatePlot(p.id, {
         status: 'adopted',
         deal: { ...patch.deal, state: 'released', releaseTx: tx, releasedBy: 'verifier', settledAt: new Date().toISOString() },
       });
+      seance.handFounderSeat(done).catch((e) => console.error('seat', e.message));
+      return done;
     }
     return store.updatePlot(p.id, patch);
   }
@@ -106,11 +137,18 @@ async function keeper() {
     for (const p of store.plots().filter((x) => x.status === 'pending')) {
       await sync(p).catch((e) => console.error('keeper', p.id, e.message));
     }
+    if (seance.seanceReady()) {
+      for (const p of store.plots().filter((x) => x.spirit)) {
+        await seance.heartbeat(p).catch((e) => console.error('heartbeat', p.id, e.message));
+      }
+    }
   } finally {
     keeping = false;
   }
 }
 setInterval(keeper, 75_000);
+setInterval(() => seance.indexTrades(), 12_000);
+setTimeout(() => seance.indexTrades(), 2000);
 
 // ------------------------------------------------------------ routes
 
@@ -122,9 +160,17 @@ const routes = {
     explorer: chain.EXPLORER,
     verifier: chain.account?.address || null,
     handoverWindow: 3 * 86400,
+    seance: seance.SEANCE || null,
+    riseAt: seance.RISE_AT,
+    heartbeatDays: seance.HEARTBEAT_DAYS,
   }),
 
-  'GET /api/plots': async () => ({ plots: store.plots().map(publicPlot) }),
+  'GET /api/plots': async () => ({ plots: await Promise.all(store.plots().map((p) => view(p))) }),
+
+  'GET /api/spirits': async () => {
+    const list = await Promise.all(store.plots().filter((p) => p.spirit).map((p) => view(p)));
+    return { spirits: list.sort((a, b) => (b.spirit.reserve || 0) - (a.spirit.reserve || 0)) };
+  },
 
   'GET /api/stats': async () => {
     const all = store.plots();
@@ -135,6 +181,8 @@ const routes = {
       adopted: all.filter((p) => p.status === 'adopted').length,
       asking: all.filter((p) => p.status === 'resting').reduce((a, p) => a + p.price, 0),
       escrow,
+      spirits: all.filter((p) => p.spirit).length,
+      candles: all.reduce((a, p) => a + Object.keys(p.spirit?.holders || {}).length, 0),
     };
   },
 
@@ -189,7 +237,7 @@ const routes = {
     });
     store.log('buried', { plot: p.id, seller, price });
     ownershipProof(p.repo, seller).then((proof) => proof && store.updatePlot(p.id, { proof })).catch(() => {});
-    return { plot: publicPlot(p) };
+    return { plot: await view(p) };
   },
 };
 
@@ -199,7 +247,7 @@ async function plotRoute(method, id, action, req) {
 
   if (method === 'GET' && !action) {
     const fresh = p.status === 'pending' ? await sync(p, { checkTransfer: false }).catch(() => p) : p;
-    return { plot: publicPlot(fresh) };
+    return { plot: await view(fresh, { full: true }) };
   }
 
   if (method === 'POST' && action === 'proof') {
@@ -220,12 +268,36 @@ async function plotRoute(method, id, action, req) {
     if (a.amount + 1e-9 < p.price) throw Object.assign(new Error('Deal is below the asking price'), { code: 400 });
     const deal = { id: a.dealId, buyer: a.buyer, buyerGithub: gh, amount: a.amount, deadline: a.deadline, txHash: b.txHash, openedAt: new Date().toISOString(), state: 'funded' };
     store.log('adopted', { plot: id, deal: a.dealId, buyer: a.buyer, amount: a.amount });
-    return { plot: publicPlot(store.updatePlot(id, { status: 'pending', deal })) };
+    return { plot: await view(store.updatePlot(id, { status: 'pending', deal }), { full: true }) };
   }
 
   if (method === 'POST' && action === 'check') {
     if (limited(`check:${id}`, 6, 60_000)) throw Object.assign(new Error('Checked just now. Give GitHub a moment.'), { code: 429 });
-    return { plot: publicPlot(await sync(p)) };
+    return { plot: await view(await sync(p), { full: true }) };
+  }
+
+  if (method === 'POST' && action === 'raise') {
+    if (!seance.seanceReady()) throw Object.assign(new Error('The séance table is not set up yet'), { code: 503 });
+    if (p.spirit) throw Object.assign(new Error(`${p.name} is already raised as $${p.spirit.symbol}`), { code: 409 });
+    if (limited(`raise:${ipOf(req)}`, 5, 3600_000)) throw Object.assign(new Error('Too many séances from here. Try again later.'), { code: 429 });
+    const b = await body(req);
+    const symbol = String(b.symbol || '').replace(/^[$]/, '').toUpperCase().trim();
+    if (!/^[A-Z0-9]{2,8}$/.test(symbol)) throw Object.assign(new Error('Ticker: 2 to 8 letters or digits'), { code: 400 });
+    if (!isAddress(b.founder || '')) throw Object.assign(new Error('Connect a wallet first'), { code: 400 });
+    const founder = getAddress(b.founder);
+    if (founder.toLowerCase() !== seance.founderOf(p).toLowerCase())
+      throw Object.assign(new Error('Only the wallet that buried this project (or its adopter) can raise it'), { code: 403 });
+    const message = seance.raiseMessage({ repo: p.repo, symbol, founder });
+    if (!(await chain.verifySignature(founder, message, b.signature))) throw Object.assign(new Error('Signature did not match the founder wallet'), { code: 401 });
+    const raised = await seance.launchSpirit(p, symbol);
+    return { plot: await view(raised, { full: true }) };
+  }
+
+  if (method === 'POST' && action === 'spirit') {
+    // after a trade: pull new events right away instead of waiting for the indexer tick
+    await seance.indexTrades();
+    if (p.spirit) seance.forget(p.spirit.id);
+    return { plot: await view(store.plot(id), { full: true }) };
   }
 
   throw Object.assign(new Error('Not found'), { code: 404 });
