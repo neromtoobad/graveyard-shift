@@ -304,7 +304,10 @@ em { font-style: italic; color: var(--moss); }
   .stat, .stat:first-child { padding: 20px; border-left: 0; border-top: 1px solid var(--line); }
   .plots, .how, .log, .page { padding-left: 20px; padding-right: 20px; }
   .how ol { grid-template-columns: 1fr; }
-  .plot-layout { grid-template-columns: 1fr; gap: 30px; }
+  .plot-layout { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+  .plot-right, .plot-aside, .plot-left { min-width: 0; }
+  .wallet .bal { display: none; }
+  .seance-head h1 { font-size: 40px; }
   .plot-left { position: static; }
   .salvage { grid-template-columns: 1fr; }
   .vital { grid-template-columns: 1fr 1fr; }
@@ -412,3 +415,4 @@ em { font-style: italic; color: var(--moss); }
   .rules { grid-template-columns: 1fr; margin: 36px 0 46px; }
   .spirit-grid { grid-template-columns: 1fr; }
 }
+main { overflow-x: clip; }
