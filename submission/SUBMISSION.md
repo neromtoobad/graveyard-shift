@@ -23,6 +23,8 @@ Try this:
 **Built with**
 Claude Code built all of it from one conversation: Solidity escrow plus 11 Foundry tests, the Node server (keeper, verifier, faucet), and the React UI, plus the deploys. Claude Opus 5.5 runs inside the product as the coroner, with structured outputs. The rest of the stack is Base Sepolia, Base Account (EIP-5792 batched calls), wagmi/viem, Railway and Vercel.
 
+**Contracts (Base Sepolia, Sourcify-verified)**: escrow 0x74d0C081C24A22e1170dd357a00a9dA25cD335d8 · gUSDC 0x56B5fA16b3f32DcaE2980e17fc967e163409cFca
+
 **Screenshot**: submission/hero.png (1600×1000)
 **Repo**: https://github.com/neromtoobad/graveyard-shift (once pushed)
 **X handle**: @neromtoobad

@@ -8,6 +8,10 @@ waits in an escrow contract on Base, and it reaches you when the repo lands in t
 
 Live: **https://graveyard.nerom.site** · Built for Vibeathon 02 (Night Shift) on Vibestarter.
 
+Contracts on Base Sepolia (source verified on Sourcify):
+- Graveyard escrow: [`0x74d0C081C24A22e1170dd357a00a9dA25cD335d8`](https://sepolia.basescan.org/address/0x74d0C081C24A22e1170dd357a00a9dA25cD335d8)
+- gUSDC test token: [`0x56B5fA16b3f32DcaE2980e17fc967e163409cFca`](https://sepolia.basescan.org/address/0x56B5fA16b3f32DcaE2980e17fc967e163409cFca)
+
 ## What to try
 
 1. **Walk the graveyard.** Each headstone is a real, dormant public repo, and everything on the stone is data:
