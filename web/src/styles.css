@@ -55,7 +55,7 @@ em { font-style: italic; color: var(--moss); }
 .linkish { background: none; border: 0; padding: 0; text-align: left; }
 
 /* ---------- header ---------- */
-.top { position: fixed; inset: 0 0 auto; z-index: 50; display: flex; align-items: center; gap: 28px; padding: 14px 28px; background: rgba(7,9,13,.55); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid rgba(232,228,216,.05); }
+.top { position: fixed; inset: 0 0 auto; z-index: 50; display: flex; align-items: center; gap: 28px; padding: 14px 28px; background: rgba(7,9,13,.84); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid rgba(232,228,216,.05); }
 .brand { font: 500 15px var(--mono); text-decoration: none; letter-spacing: -.01em; }
 .top nav { display: flex; gap: 22px; margin-right: auto; }
 .top nav a { color: var(--ink2); text-decoration: none; font-size: 14px; }
@@ -94,7 +94,7 @@ em { font-style: italic; color: var(--moss); }
 .hero h1 em { font-weight: 300; }
 .lede { color: var(--ink2); font-size: 17px; max-width: 540px; margin: 26px 0 32px; }
 .cta { display: flex; gap: 12px; flex-wrap: wrap; }
-.hero-stones { position: absolute; right: 4vw; bottom: 9vh; z-index: 2; display: flex; align-items: flex-end; gap: 1.4vw; }
+.hero-stones { position: absolute; right: 19vw; bottom: 9vh; z-index: 2; display: flex; align-items: flex-end; gap: 1.4vw; }
 .hs { display: block; text-decoration: none; transition: transform .3s; }
 .hs:hover { transform: translateY(-6px); }
 .hs0 { order: 3; } .hs1 { order: 2; transform: translateY(14px); } .hs2 { order: 4; transform: translateY(18px); } .hs3 { order: 1; transform: translateY(34px); } .hs4 { order: 5; transform: translateY(40px); }
@@ -107,7 +107,7 @@ em { font-style: italic; color: var(--moss); }
 .stone { position: relative; width: 168px; height: 212px; border-radius: 84px 84px 6px 6px; background: linear-gradient(160deg, var(--stone1), var(--stone2) 70%); box-shadow: inset 0 2px 0 rgba(255,255,255,.08), inset 0 -20px 30px rgba(0,0,0,.35), 0 18px 30px -12px rgba(0,0,0,.8); transform: rotate(var(--lean)); transform-origin: bottom center; overflow: hidden; display: grid; place-items: center; }
 .stone-tex { position: absolute; inset: 0; width: 100%; height: 100%; mix-blend-mode: overlay; }
 .crack { fill: none; stroke: rgba(0,0,0,.45); stroke-width: 1.6; }
-.moss { position: absolute; inset: auto 0 0; height: calc(var(--moss) * 75%); background: radial-gradient(ellipse at 18% 100%, rgba(58,92,40,.95), transparent 55%), radial-gradient(ellipse at 85% 100%, rgba(52,84,36,.85), transparent 50%), radial-gradient(ellipse at 50% 125%, rgba(40,66,28,.95), transparent 60%); mix-blend-mode: multiply; }
+.moss { position: absolute; inset: auto 0 0; height: calc(var(--moss) * 42%); background: radial-gradient(ellipse at 18% 100%, rgba(58,92,40,.95), transparent 55%), radial-gradient(ellipse at 85% 100%, rgba(52,84,36,.85), transparent 50%), radial-gradient(ellipse at 50% 125%, rgba(40,66,28,.95), transparent 60%); mix-blend-mode: multiply; }
 .engrave { position: relative; text-align: center; padding: 34px 16px 12px; display: grid; gap: 6px; }
 .engrave .rip { font: 500 9px var(--mono); letter-spacing: .3em; text-transform: uppercase; color: rgba(10,12,16,.62); text-shadow: 0 1px 0 rgba(255,255,255,.08); }
 .engrave h3 { font-size: 21px; line-height: 1.05; font-weight: 500; font-variant: small-caps; letter-spacing: .02em; color: #15181d; text-shadow: 0 1px 0 rgba(255,255,255,.22), 0 -1px 0 rgba(0,0,0,.35); word-break: break-word; }
@@ -277,14 +277,26 @@ em { font-style: italic; color: var(--moss); }
   .plot-layout { grid-template-columns: 260px 1fr; }
   .plot-aside { grid-column: 1 / -1; position: static; max-width: 520px; }
 }
+/* The night watchman: his lantern flares while any handover sits in escrow. */
+.watchman { position: absolute; right: 3vw; bottom: 5vh; height: min(62vh, 600px); aspect-ratio: 407 / 760; margin: 0; z-index: 2; filter: drop-shadow(0 20px 30px rgba(0,0,0,.7)) brightness(.8) saturate(.9); }
+.watchman img { display: block; width: 100%; height: 100%; }
+.lantern-glow { position: absolute; left: 16.2%; top: 31.3%; width: 70%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(circle, rgba(244,184,96,.34), rgba(244,184,96,.08) 45%, transparent 70%); mix-blend-mode: screen; opacity: .35; pointer-events: none; }
+.watchman.on-duty .lantern-glow { opacity: 1; width: 120%; animation: lantern 3.2s ease-in-out infinite; }
+@keyframes lantern { 0%, 100% { opacity: .85; transform: translate(-50%, -50%) scale(1); } 47% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); } 50% { opacity: .7; } 53% { opacity: 1; } }
+.watchman figcaption { position: absolute; left: 50%; bottom: -2px; transform: translate(-50%, 100%); white-space: nowrap; font: 500 11px var(--mono); color: var(--ink3, #7d8594); letter-spacing: .02em; }
+.watchman.on-duty figcaption { color: var(--amber); }
 @media (max-width: 900px) {
   .top { padding: 12px 16px; gap: 12px; }
   .top nav { display: none; }
   .brand { margin-right: auto; }
-  .hero { grid-template-columns: 1fr; padding: 110px 20px 0; align-items: start; }
+  .hero { grid-template-columns: minmax(0, 1fr); padding: 110px 20px 0; align-items: start; }
   .hero-copy { padding-bottom: 0; }
   .hero-stones { position: relative; right: auto; bottom: auto; justify-content: center; margin: 40px 0 8vh; gap: 8px; }
   .hero-stones .hs3, .hero-stones .hs4 { display: none; }
+  .hero-stones { justify-content: flex-start; margin-right: 130px; }
+  .hero-stones .hs2 { display: none; }
+  .watchman { height: 205px; right: 10px; bottom: 4vh; }
+  .watchman figcaption { display: none; }
   .tower { right: 5vw; bottom: 150px; width: 34px; opacity: .55; }
   .moon { right: 5vw; top: 70px; width: 46px; height: 46px; }
   .eyebrow { max-width: 260px; line-height: 1.5; }

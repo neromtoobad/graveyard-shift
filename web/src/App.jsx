@@ -92,6 +92,7 @@ function Home({ plots, stats, config, loading }) {
   const front = useMemo(() => [...plots].sort((a, b) => (b.report?.vitality || 0) - (a.report?.vitality || 0)).slice(0, 5), [plots]);
   const buried = plots.length;
   const adopted = plots.filter((p) => p.status === 'adopted').length;
+  const pending = plots.filter((p) => p.status === 'pending').length;
 
   return (
     <>
@@ -123,6 +124,11 @@ function Home({ plots, stats, config, loading }) {
             </a>
           ))}
         </div>
+        <figure className={`watchman${pending ? ' on-duty' : ''}`} title={pending ? `The watchman's lantern is up: ${pending} handover${pending > 1 ? 's' : ''} in escrow tonight` : 'Quiet night. No handovers in escrow.'}>
+          <img src="/watchman.webp" alt="The night watchman, holding a lantern and a spade" width="407" height="760" />
+          <span className="lantern-glow" />
+          <figcaption>{pending ? `${pending} handover${pending > 1 ? 's' : ''} in escrow` : 'Quiet night'}</figcaption>
+        </figure>
         <div className="hill near" />
       </section>
 
