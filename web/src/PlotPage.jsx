@@ -6,6 +6,7 @@ import { api, graveyardAbi, gusdAbi, usd, day, short, until, ago, CHAIN } from '
 import { Stone, Pulse } from './Tombstone.jsx';
 import { useGusd, Faucet } from './Wallet.jsx';
 import { usePoll } from './App.jsx';
+import { SpiritPanel } from './Spirit.jsx';
 
 export function PlotPage({ id, config, onChange }) {
   const q = usePoll(() => api(`/plots/${id}`), 10_000, [id]);
@@ -99,6 +100,7 @@ export function PlotPage({ id, config, onChange }) {
 
         <aside className="plot-aside">
           <Deal plot={p} config={config} onChange={refresh} />
+          <SpiritPanel plot={p} config={config} onChange={refresh} />
         </aside>
       </div>
     </section>

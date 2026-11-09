@@ -6,6 +6,7 @@ import { PlotCard, Stone } from './Tombstone.jsx';
 import { ConnectButton } from './Wallet.jsx';
 import { PlotPage } from './PlotPage.jsx';
 import { BuryPage } from './BuryPage.jsx';
+import { SeancePage } from './Spirit.jsx';
 
 export function usePoll(fn, ms, deps = []) {
   const [data, setData] = useState(null);
@@ -36,6 +37,7 @@ export default function App() {
   if (m) page = <PlotPage id={m[1]} config={config} onChange={reload} />;
   else if (route.startsWith('/bury')) page = <BuryPage config={config} onDone={reload} />;
   else if (route.startsWith('/me')) page = <MePage plots={plots} />;
+  else if (route.startsWith('/seance')) page = <SeancePage config={config} plots={plots} />;
   else page = <Home plots={plots} stats={statsQ.data} config={config} loading={!plotsQ.data} />;
 
   return (
@@ -47,6 +49,7 @@ export default function App() {
         <nav>
           <a href="#/" className={route === '/' ? 'on' : ''}>The graveyard</a>
           <a href="#/bury" className={route.startsWith('/bury') ? 'on' : ''}>Bury a project</a>
+          <a href="#/seance" className={route.startsWith('/seance') ? 'on' : ''}>Séance</a>
           <a href="#/#how">How it works</a>
         </nav>
         <ConnectButton config={config} />
@@ -60,6 +63,11 @@ export default function App() {
           {config?.graveyard && (
             <a href={`${config.explorer}/address/${config.graveyard}`} target="_blank" rel="noreferrer">
               Escrow contract {short(config.graveyard)} ↗
+            </a>
+          )}
+          {config?.seance && (
+            <a href={`${config.explorer}/address/${config.seance}`} target="_blank" rel="noreferrer">
+              Séance contract {short(config.seance)} ↗
             </a>
           )}
           <span>Base Sepolia · test USDC</span>
@@ -79,7 +87,7 @@ function Home({ plots, stats, config, loading }) {
   }, []);
 
   const list = useMemo(() => {
-    let l = plots.filter((p) => filter === 'all' || p.status === filter);
+    let l = plots.filter((p) => filter === 'all' || (filter === 'raised' ? Boolean(p.spirit) : p.status === filter));
     const by = {
       fresh: (a, b) => a.vitals.daysDead - b.vitals.daysDead,
       vital: (a, b) => (b.report?.vitality || 0) - (a.report?.vitality || 0),
@@ -102,7 +110,7 @@ function Home({ plots, stats, config, loading }) {
         <div className="hill far" />
         <Tower buried={buried} adopted={adopted} />
         <div className="hero-copy">
-          <p className="eyebrow">A marketplace for abandoned side projects · on Base</p>
+          <p className="eyebrow">Adopt abandoned side projects, or raise them as tokens · on Base</p>
           <h1>
             Every builder has a graveyard.
             <br />
@@ -110,11 +118,12 @@ function Home({ plots, stats, config, loading }) {
           </h1>
           <p className="lede">
             Bury the project you stopped shipping. Someone who still believes in it adopts it, repo and live app and all. Their USDC waits in escrow on
-            Base, and goes to you when the repo lands in their GitHub.
+            Base, and goes to you when the repo lands in their GitHub. Or hold a séance: raise it as a token, and get paid for every week you ship.
           </p>
           <div className="cta">
             <a className="btn primary" href="#plots">Walk the graveyard</a>
             <a className="btn ghost" href="#/bury">Bury a project</a>
+            <a className="btn ghost" href="#/seance">Hold a séance</a>
           </div>
         </div>
         <div className="hero-stones">
@@ -134,7 +143,7 @@ function Home({ plots, stats, config, loading }) {
 
       <section className="ledger">
         <Stat k="Resting" v={stats?.resting ?? '–'} d="projects waiting for an owner" />
-        <Stat k="Asking, combined" v={stats ? `$${usd(stats.asking)}` : '–'} d="in USDC" />
+        <Stat k="Spirits raised" v={stats?.spirits ?? '–'} d={stats ? `${stats.candles} candle${stats.candles === 1 ? '' : 's'} lit` : 'tokens on the séance curve'} />
         <Stat k="In escrow" v={stats?.escrow ? `$${usd(stats.escrow.locked)}` : '–'} d="read live from the contract" live />
         <Stat k="Adopted" v={stats?.adopted ?? '–'} d="handed over and paid" />
       </section>
@@ -143,9 +152,9 @@ function Home({ plots, stats, config, loading }) {
         <div className="plots-head">
           <h2>The graveyard</h2>
           <div className="filters">
-            {['all', 'resting', 'pending', 'adopted'].map((f) => (
+            {['all', 'resting', 'pending', 'adopted', 'raised'].map((f) => (
               <button key={f} className={filter === f ? 'on' : ''} onClick={() => setFilter(f)}>
-                {f === 'pending' ? 'in escrow' : f}
+                {f === 'pending' ? 'in escrow' : f === 'raised' ? 'tokens' : f}
               </button>
             ))}
             <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort">
@@ -183,6 +192,11 @@ function Home({ plots, stats, config, loading }) {
             <h4>Hand over, get paid</h4>
             <p>You transfer the repo on GitHub. Our verifier sees it arrive in the adopter's account and releases the money to you, minus a 2.5% fee. Never transferred? After 3 days the adopter takes it all back. Change your mind? Back out and they're refunded at once.</p>
           </li>
+          <li>
+            <span className="n">04</span>
+            <h4>Or raise it</h4>
+            <p>Not ready to let go? Hold a séance. Your project launches as a token on a bonding curve, with no presale and no team tokens. 2% of every trade fills a revival pot that you can claim only while the repo has a commit in the last 30 days. <a href="#/seance">The séance →</a></p>
+          </li>
         </ol>
       </section>
 
@@ -211,6 +225,13 @@ function describe(e) {
     case 'released': return <>{p} was handed over and paid out</>;
     case 'refunded': return <>Adoption of {p} was refunded; it rests again</>;
     case 'faucet': return <>{short(e.address)} picked up test USDC</>;
+    case 'raised': return <>{p} was raised from the dead as ${e.symbol}</>;
+    case 'candle': return <>{short(e.who)} lit a candle for ${e.symbol} ({e.usd} USDC)</>;
+    case 'snuffed': return <>{short(e.who)} blew out a candle for ${e.symbol}</>;
+    case 'risen': return <>${e.symbol} has risen</>;
+    case 'pulse': return <>Heartbeat: a new commit on {p} ({e.sha})</>;
+    case 'claimed': return <>The founder of {p} claimed {e.usd} USDC from the revival pot</>;
+    case 'seat': return <>The founder seat for ${e.symbol} passed to {short(e.founder)}</>;
     default: return e.kind;
   }
 }

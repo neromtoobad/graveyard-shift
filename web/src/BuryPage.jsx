@@ -86,7 +86,10 @@ export function BuryPage({ config, onDone }) {
           <pre>{done.seller}</pre>
           <ProofCheck id={done.id} />
         </div>
-        <a className="btn primary" href={`#/plot/${done.id}`}>See the plot</a>
+        <div className="cta center">
+          <a className="btn primary" href={`#/plot/${done.id}`}>See the plot</a>
+          <a className="btn ghost" href={`#/plot/${done.id}`}>Raise it as a token</a>
+        </div>
       </section>
     );
 

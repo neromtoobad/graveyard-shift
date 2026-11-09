@@ -6,7 +6,7 @@ import { parseAbi } from 'viem';
 export const wagmiConfig = createConfig({
   chains: [baseSepolia],
   connectors: [baseAccount({ appName: 'Graveyard Shift' }), injected()],
-  transports: { [baseSepolia.id]: http('https://sepolia.base.org') },
+  transports: { [baseSepolia.id]: http(import.meta.env.VITE_RPC_URL || 'https://sepolia.base.org') },
 });
 
 export const CHAIN = baseSepolia;
