@@ -297,6 +297,12 @@ export function SeancePage({ config, plots }) {
   return (
     <section className="page seance">
       <div className="seance-head">
+        <div className="seance-art" aria-hidden>
+          <img className="g" src="/clay/ghost-risen.webp" alt="" />
+          <img className="c c1" src="/clay/candle.webp" alt="" />
+          <img className="c c2" src="/clay/candle.webp" alt="" />
+          <img className="c c3" src="/clay/candle.webp" alt="" />
+        </div>
         <p className="eyebrow">The séance · a launchpad for dead projects</p>
         <h1>Raise the dead. <em>Then make the founder ship.</em></h1>
         <p className="lede">

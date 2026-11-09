@@ -2,92 +2,63 @@ import React from 'react';
 import { seed, year, usd } from './lib.js';
 
 /**
- * A plot's headstone. Everything on it is data:
- *  - moss creeps up with days since the last commit
- *  - a crack appears after 90 days dead, the stone leans further the longer it's been
- *  - the glow behind it is the coroner's vitality score (how revivable it is)
- *  - a lantern burns while an adoption is in escrow; adopted plots stand open, risen
- *  - raised as a token: one candle per holder, and a ghost that takes shape as the curve fills
+ * A plot's headstone, in clay. Everything on it is data:
+ *  - the stone ages with days since the last commit: fresh, then mossy (a month cold), then cracked and leaning (four months)
+ *  - adopted plots wear a flower garland and a sprout: risen
+ *  - the halo behind it is the coroner's vitality score (how revivable it is)
+ *  - a lantern burns beside it while an adoption is in escrow
+ *  - raised as a token: one candle per holder, and a ghost that climbs out as the curve fills
  */
-export function Stone({ plot, size = 'card' }) {
+export function stoneKind(plot) {
   const dead = plot.vitals?.daysDead ?? 0;
-  const moss = Math.min(1, dead / 200);
-  const lean = (seed(plot.id) - 0.5) * 2 * Math.min(4, 0.6 + dead / 50);
+  if (plot.status === 'adopted') return 'risen';
+  if (dead > 120) return 'old';
+  if (dead > 30) return 'mossy';
+  return 'fresh';
+}
+
+export function Stone({ plot, size = 'card' }) {
+  const kind = stoneKind(plot);
   const vit = plot.report?.vitality ?? 50;
-  const risen = plot.status === 'adopted';
+  const lean = kind === 'old' ? 0 : (seed(plot.id) - 0.5) * 2 * Math.min(2.5, 0.4 + (plot.vitals?.daysDead ?? 0) / 120);
   const pending = plot.status === 'pending';
   const sp = plot.spirit;
   const rise = sp ? Math.min(1, sp.progress || 0) : 0;
+  const pose = !sp ? null : sp.risenAt || rise >= 1 ? 'risen' : rise >= 0.34 ? 'float' : 'shy';
   return (
     <div
-      className={`stone-wrap ${size} ${risen ? 'risen' : ''} ${pending ? 'pending' : ''} ${sp ? 'has-spirit' : ''} ${sp?.risenAt ? 'spirit-risen' : ''}`}
-      style={{ '--vit': vit / 100, '--moss': moss, '--lean': `${lean}deg`, '--rise': rise }}
+      className={`stone-wrap ${size} k-${kind} ${pending ? 'pending' : ''} ${sp ? 'has-spirit' : ''} ${pose ? `pose-${pose}` : ''}`}
+      style={{ '--vit': vit / 100, '--lean': `${lean}deg`, '--rise': rise }}
     >
-      <div className="soul" />
-      {sp && <Ghost id={plot.id} />}
+      <div className="halo" />
+      {pose && <img className="phantom" src={`/clay/ghost-${pose}.webp`} alt="" draggable="false" />}
       <div className="stone">
-        <svg className="stone-tex" viewBox="0 0 200 260" preserveAspectRatio="none" aria-hidden>
-          <defs>
-            <filter id={`n-${plot.id}`}>
-              <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed={Math.round(seed(plot.id) * 99)} />
-              <feColorMatrix values="0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.55  0 0 0 0.22 0" />
-            </filter>
-          </defs>
-          <rect width="200" height="260" filter={`url(#n-${plot.id})`} />
-          {dead > 90 && <path d={`M${60 + seed(plot.id + 'c') * 80} 0 l-8 30 l10 18 l-14 34 l6 22`} className="crack" />}
-        </svg>
-        <div className="moss" />
+        <img className="stone-img" src={`/clay/stone-${kind}.webp`} alt="" draggable="false" />
         <div className="engrave">
-          <span className="rip">here lies</span>
+          {size !== 'mini' && <span className="rip">here lies</span>}
           <h3>{plot.name}</h3>
           <span className="dates">
-            {year(plot.vitals?.born)} — {year(plot.vitals?.died)}
+            {year(plot.vitals?.born)}–{year(plot.vitals?.died)}
           </span>
-          {size !== 'mini' && <p className="epitaph">{plot.report?.epitaph}</p>}
+          {size === 'big' && plot.report?.epitaph && <p className="epitaph">{plot.report.epitaph}</p>}
         </div>
-        {risen && <span className="risen-tag">risen</span>}
       </div>
-      {pending && (
-        <svg className="lantern" viewBox="0 0 24 40" aria-label="Adoption in escrow">
-          <path d="M12 2v5" stroke="#6b5a3a" strokeWidth="1.5" />
-          <rect x="5" y="7" width="14" height="4" rx="1" fill="#3a3122" />
-          <rect x="6" y="11" width="12" height="20" rx="2" fill="#f4b860" fillOpacity="0.85" />
-          <rect x="5" y="31" width="14" height="4" rx="1" fill="#3a3122" />
-        </svg>
-      )}
-      <div className="mound" />
+      {pending && <img className="lantern" src="/clay/lantern.webp" alt="Adoption in escrow" title="Adoption in escrow" />}
       {sp && <Candles n={sp.candles} id={plot.id} />}
     </div>
   );
 }
 
-/** The project's ghost: faint at launch, fully formed when the curve fills and it rises. */
-function Ghost({ id }) {
-  return (
-    <svg className="phantom" viewBox="0 0 60 80" aria-hidden>
-      <defs>
-        <radialGradient id={`g-${id}`} cx="50%" cy="35%" r="70%">
-          <stop offset="0" stopColor="#f4fff0" stopOpacity="0.95" />
-          <stop offset="0.6" stopColor="#c9f7b0" stopOpacity="0.5" />
-          <stop offset="1" stopColor="#9fe870" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <path d="M30 4c13 0 21 10 21 24v38c-3.5-3-7-3-10.5 0s-7 3-10.5 0-7-3-10.5 0S12.5 69 9 66V28C9 14 17 4 30 4z" fill={`url(#g-${id})`} />
-      <ellipse cx="23" cy="28" rx="3" ry="4.2" fill="#0b0f17" fillOpacity="0.7" />
-      <ellipse cx="37" cy="28" rx="3" ry="4.2" fill="#0b0f17" fillOpacity="0.7" />
-    </svg>
-  );
-}
-
-/** One candle per holder, up to nine, planted around the mound. */
+/** One candle per holder, up to seven, planted along the mound. */
 function Candles({ n = 0, id }) {
-  const shown = Math.min(9, n);
+  const shown = Math.min(7, n);
   if (!shown) return null;
-  const slots = [-44, 44, -56, 56, -32, 32, -66, 66, 0];
+  const slots = [-38, 38, -50, 50, -26, 26, 0];
   return (
     <div className="candles" aria-label={`${n} candle${n === 1 ? '' : 's'} lit`}>
       {Array.from({ length: shown }, (_, i) => (
-        <span key={i} className="candle" style={{ '--x': `${slots[i]}%`, '--d': `${(seed(id + i) * 2).toFixed(2)}s`, '--h': 0.8 + seed(id + 'h' + i) * 0.5 }}>
+        <span key={i} className="candle" style={{ '--x': `${slots[i]}%`, '--d': `${(seed(id + i) * 2).toFixed(2)}s`, '--s': 0.85 + seed(id + 'h' + i) * 0.3 }}>
+          <img src="/clay/candle.webp" alt="" draggable="false" />
           <i />
         </span>
       ))}

@@ -104,6 +104,7 @@ export function BuryPage({ config, onDone }) {
   return (
     <section className="page bury">
       <div className="bury-head">
+        <img className="head-prop" src="/clay/spade.webp" alt="" />
         <p className="eyebrow">Bury a project</p>
         <h1>Some projects don't need to die. <em>They need a new owner.</em></h1>
         <p className="lede">Paste the public GitHub repo of something you stopped working on. The coroner reads it and writes an honest autopsy that adopters will see.</p>

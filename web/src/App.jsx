@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { api, useHashRoute, usd, ago, short } from './lib.js';
-import { Rain, Sky, Tower } from './Scene.jsx';
 import { PlotCard, Stone } from './Tombstone.jsx';
 import { ConnectButton } from './Wallet.jsx';
 import { PlotPage } from './PlotPage.jsx';
@@ -44,7 +43,7 @@ export default function App() {
     <>
       <header className="top">
         <a className="brand" href="#/">
-          <span className="prompt">&gt;_</span> graveyard shift
+          <img src="/clay/stone-risen.webp" alt="" /> Graveyard Shift
         </a>
         <nav>
           <a href="#/" className={route === '/' ? 'on' : ''}>The graveyard</a>
@@ -57,7 +56,7 @@ export default function App() {
       <main>{page}</main>
       <footer className="foot">
         <div>
-          <span className="prompt">&gt;_</span> graveyard shift · built on the night shift for Vibeathon 02
+          <img src="/clay/lantern.webp" alt="" /> Graveyard Shift · built on the night shift for Vibeathon 02
         </div>
         <div className="foot-links">
           {config?.graveyard && (
@@ -98,27 +97,19 @@ function Home({ plots, stats, config, loading }) {
   }, [plots, filter, sort]);
 
   const front = useMemo(() => [...plots].sort((a, b) => (b.report?.vitality || 0) - (a.report?.vitality || 0)).slice(0, 5), [plots]);
-  const buried = plots.length;
-  const adopted = plots.filter((p) => p.status === 'adopted').length;
   const pending = plots.filter((p) => p.status === 'pending').length;
 
   return (
     <>
       <section className="hero">
-        <Sky />
-        <Rain />
-        <div className="hill far" />
-        <Tower buried={buried} adopted={adopted} />
         <div className="hero-copy">
-          <p className="eyebrow">Adopt abandoned side projects, or raise them as tokens · on Base</p>
+          <p className="eyebrow"><span className="dot" /> Adopt abandoned side projects, or raise them as tokens · on Base</p>
           <h1>
-            Every builder has a graveyard.
-            <br />
-            <em>Now it has a night shift.</em>
+            Every builder has a graveyard. <em>Now it has a night shift.</em>
           </h1>
           <p className="lede">
             Bury the project you stopped shipping. Someone who still believes in it adopts it, repo and live app and all. Their USDC waits in escrow on
-            Base, and goes to you when the repo lands in their GitHub. Or hold a séance: raise it as a token, and get paid for every week you ship.
+            Base and goes to you when the repo lands in their GitHub. Or hold a séance: raise it as a token, and get paid for every month you ship.
           </p>
           <div className="cta">
             <a className="btn primary" href="#plots">Walk the graveyard</a>
@@ -126,26 +117,29 @@ function Home({ plots, stats, config, loading }) {
             <a className="btn ghost" href="#/seance">Hold a séance</a>
           </div>
         </div>
-        <div className="hero-stones">
-          {front.map((p, i) => (
-            <a key={p.id} href={`#/plot/${p.id}`} className={`hs hs${i}`} aria-label={p.name}>
-              <Stone plot={p} size="mini" />
-            </a>
-          ))}
+        <div className="hero-scene" aria-label="The five most revivable projects in the graveyard">
+          <div className="moon" />
+          <div className="hill" />
+          <div className="hero-stones">
+            {front.map((p, i) => (
+              <a key={p.id} href={`#/plot/${p.id}`} className={`hs hs${i}`} aria-label={p.name}>
+                <Stone plot={p} size="mini" />
+              </a>
+            ))}
+          </div>
+          <figure className={`watchman${pending ? ' on-duty' : ''}`} title={pending ? `The watchman's lantern is up: ${pending} handover${pending > 1 ? 's' : ''} in escrow tonight` : 'Quiet night. No handovers in escrow.'}>
+            <span className="lantern-glow" />
+            <img src="/clay/watchman.webp" alt="The night watchman, holding a lantern and a spade" width="479" height="760" />
+            <figcaption>{pending ? `${pending} handover${pending > 1 ? 's' : ''} in escrow` : 'Quiet night, no handovers'}</figcaption>
+          </figure>
         </div>
-        <figure className={`watchman${pending ? ' on-duty' : ''}`} title={pending ? `The watchman's lantern is up: ${pending} handover${pending > 1 ? 's' : ''} in escrow tonight` : 'Quiet night. No handovers in escrow.'}>
-          <img src="/watchman.webp" alt="The night watchman, holding a lantern and a spade" width="407" height="760" />
-          <span className="lantern-glow" />
-          <figcaption>{pending ? `${pending} handover${pending > 1 ? 's' : ''} in escrow` : 'Quiet night'}</figcaption>
-        </figure>
-        <div className="hill near" />
       </section>
 
       <section className="ledger">
-        <Stat k="Resting" v={stats?.resting ?? '–'} d="projects waiting for an owner" />
-        <Stat k="Spirits raised" v={stats?.spirits ?? '–'} d={stats ? `${stats.candles} candle${stats.candles === 1 ? '' : 's'} lit` : 'tokens on the séance curve'} />
-        <Stat k="In escrow" v={stats?.escrow ? `$${usd(stats.escrow.locked)}` : '–'} d="read live from the contract" live />
-        <Stat k="Adopted" v={stats?.adopted ?? '–'} d="handed over and paid" />
+        <Stat icon="stone-fresh" k="Resting" v={stats?.resting ?? '–'} d="projects waiting for an owner" />
+        <Stat icon="ghost-float" k="Spirits raised" v={stats?.spirits ?? '–'} d={stats ? `${stats.candles} candle${stats.candles === 1 ? '' : 's'} lit` : 'tokens on the séance curve'} />
+        <Stat icon="chest" k="In escrow" v={stats?.escrow ? `$${usd(stats.escrow.locked)}` : '–'} d="read live from the contract" live />
+        <Stat icon="stone-risen" k="Adopted" v={stats?.adopted ?? '–'} d="handed over and paid" />
       </section>
 
       <section className="plots" id="plots">
@@ -178,22 +172,22 @@ function Home({ plots, stats, config, loading }) {
         <h2>How a handover works</h2>
         <ol>
           <li>
-            <span className="n">01</span>
+            <img className="step-ico" src="/clay/spade.webp" alt="" /><span className="n">01</span>
             <h4>Bury it</h4>
             <p>Paste a public repo. The coroner (Claude) reads the code, README and commit history and writes the autopsy: cause of death, what's worth salvaging, a revival plan and a fair price band. You set the asking price and sign it with your wallet.</p>
           </li>
           <li>
-            <span className="n">02</span>
+            <img className="step-ico" src="/clay/chest.webp" alt="" /><span className="n">02</span>
             <h4>Someone adopts it</h4>
             <p>The adopter locks the asking price in USDC in the Graveyard contract on Base, and names the GitHub account the repo should go to. The plot's lantern lights. Nobody can touch the money except by the rules below.</p>
           </li>
           <li>
-            <span className="n">03</span>
+            <img className="step-ico" src="/clay/stone-risen.webp" alt="" /><span className="n">03</span>
             <h4>Hand over, get paid</h4>
             <p>You transfer the repo on GitHub. Our verifier sees it arrive in the adopter's account and releases the money to you, minus a 2.5% fee. Never transferred? After 3 days the adopter takes it all back. Change your mind? Back out and they're refunded at once.</p>
           </li>
           <li>
-            <span className="n">04</span>
+            <img className="step-ico" src="/clay/ghost-risen.webp" alt="" /><span className="n">04</span>
             <h4>Or raise it</h4>
             <p>Not ready to let go? Hold a séance. Your project launches as a token on a bonding curve, with no presale and no team tokens. 2% of every trade fills a revival pot that you can claim only while the repo has a commit in the last 30 days. <a href="#/seance">The séance →</a></p>
           </li>
@@ -236,9 +230,10 @@ function describe(e) {
   }
 }
 
-function Stat({ k, v, d, live }) {
+function Stat({ icon, k, v, d, live }) {
   return (
     <div className="stat">
+      {icon && <img className="stat-ico" src={`/clay/${icon}.webp`} alt="" />}
       <span className="k">{k}{live && <i className="livedot" />}</span>
       <span className="v">{v}</span>
       <span className="d">{d}</span>

@@ -203,6 +203,7 @@ function Deal({ plot: p, config, onChange }) {
     const moved = d.ownerSeen && d.ownerSeen.toLowerCase() === d.buyerGithub.toLowerCase();
     return (
       <div className="deal pending-card">
+        <img className="deal-prop" src="/clay/chest.webp" alt="" />
         <span className="k"><i className="lamp" /> Adoption in escrow</span>
         <h3>{usd(d.amount)} USDC locked</h3>
         <ol className="steps">
